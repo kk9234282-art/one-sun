@@ -22,6 +22,18 @@ The deployment is public and read-only. Authentication, new imports, historical 
 
 ## Rebuild and verify
 
+### Local all-India ZIP database
+
+**Open all-India ZIP (CSV files)** accepts the archive directly from the user's computer. `india-worker.js` streams CSV data through a pinned, integrity-verified fflate decoder, compares expanded sizes/CRCs against the ZIP central directory and stores validated records in IndexedDB in bounded batches. No local archive data is sent to Vercel or GitHub. Non-company CSVs are reported as skipped; malformed company rows are recorded as exceptions. Duplicate CINs across files are reconciled rather than summed.
+
+The new local dataset is activated only after extraction, validation and statistics finish. A failed or cancelled import retains the previously completed dataset. Metadata and state aggregates are persisted, records are queried in disk-backed batches, and profiles fetch by CIN. Reopen the completed local dataset after refresh with **Reopen saved ZIP dataset**; **Use published data** switches back without deleting the saved import. Browser-origin storage is not a backup and may be cleared by the user or browser. Sufficient free disk space is required.
+
+The ZIP is a separate dataset, not a sum of its companies and the published subset. State/NIC/financial classifications are not inferred. Queries never turn missing financials into zero. CSV downloads in ZIP mode require at most 50,000 filtered records. All exceptions remain in the local database; the available exceptions download is capped at 5,000 with explicit total/limit metadata. The import report records source member names and skipped/accepted/rejected/duplicate counts.
+
+Supported: standard single-volume ZIP with stored or DEFLATE-compressed UTF-8 CSV files. Encrypted and ZIP64 archives are explicitly unsupported. No source files are extracted into the application's filesystem. The package licence and verified npm tarball integrity are documented in `static/vendor/`.
+
+The small compressed-archive and large 253,533,231-byte ZIP browser tests passed. The latter exercised 225,000 synthetic companies across five state labels, local persistence/reopening, state queries, profiles, CSV export, duplicate handling and CRC-error rollback with zero upload requests. These fixtures do not verify the contents or completeness of the user's actual archive.
+
 ### Open a CSV larger than the chat transfer limit
 
 Expand **Open a large company CSV from your computer**, select the file, confirm the snapshot date label and click **Load CSV in this browser**. The file is streamed in a worker without sending its contents to Vercel or the chat. Valid records merge by CIN; older snapshots do not overwrite newer records. Duplicate rows in the selected file use the last structurally valid row. Entire-file parse errors discard the pending load; **Cancel reading** and **Restore published data** are available.

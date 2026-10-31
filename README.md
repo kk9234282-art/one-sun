@@ -16,6 +16,18 @@ To refresh the authorised public export from your local database, run `.venv/bin
 
 ## Large CSV files that cannot be attached in chat
 
+### All-India ZIP archives of CSV files
+
+Use **Open all-India ZIP (CSV files)**, choose the archive directly from your computer, set its snapshot date label and click **Load ZIP into local database**. The loader streams stored/DEFLATE CSV entries, verifies their sizes and CRCs, validates company fields and deduplicates CINs across files. Records are stored in the browser's local database rather than retained as one large in-memory array. The ZIP becomes a separate local dataset; it is not added to the published agriculture subset or assumed to be a verified national census.
+
+Search, state/industry filters, charts, profiles and screening work on local records. **Reopen saved ZIP dataset** restores the completed import after refresh; **Use published data** returns to the server snapshot. Source CSV names, duplicate/rejected/skipped counts and an import report are available. All rejected rows remain stored locally, with a download of the first 5,000 exceptions. No archive contents are uploaded or published.
+
+Use a desktop browser with sufficient free disk space. Standard ZIP is supported; encrypted/multi-volume/ZIP64 archives are rejected with an explanation. Local data persists until browser storage is cleared; it is not a backup. Large filtered CSV exports are capped at 50,000 records. Missing financial information stays unknown. The ZIP decoder is the pinned MIT-licensed fflate 0.8.2 package, whose npm SHA-512 integrity was checked; licence and provenance are retained under `intelligence/static/vendor/`.
+
+Verification: `.venv/bin/python tests/india_zip_browser_smoke.py` checks compressed multi-state fixtures. Add `--large` to test a 253 MB archive containing 225,000 synthetic records, persistent reopening, duplicate/exception handling, checksum rollback, local queries and no upload requests. The user's actual all-India archive has not been inspected or published by these tests.
+
+### Individual CSV files
+
 The Vercel dashboard has **Open a large company CSV from your computer**. Select the original CSV and its snapshot date label, then **Load CSV in this browser**. A streaming worker validates rows and merges by CIN without uploading the file. Use a desktop browser with sufficient available memory. This changes only the current browser tab and is discarded on reload; it does not update the shared deployment.
 
 Choose **Create smaller files for this chat** to automatically prepare normalized CSV parts of at most 8 MiB each. Download and attach those parts in chat to enable permanent import/publication. The parts contain the selected file's unique valid records, not merely the visible page. Duplicate CINs use the last structurally valid row; exceptions are separate. No manual CSV splitting or compression is required.

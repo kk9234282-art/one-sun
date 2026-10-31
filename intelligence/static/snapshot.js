@@ -92,7 +92,9 @@
     return {summary,groups,datasets:data.datasets};
   }
   window.AtlasSnapshot = {
+    async restorePublished(){activeData=await ready;window.dispatchEvent(new Event('atlas-data-changed'));},
     async request(path, options={}) {
+      if(window.AtlasIndia?.active)return window.AtlasIndia.request(path,options);
       if (options.method && options.method !== 'GET') throw new Error('This public deployment is read-only. Use the full application to import or update data.');
       await ready;
       const data = activeData, url = new URL(path, location.origin), params = url.searchParams;
@@ -118,6 +120,7 @@
     if (!anchor || !anchor.getAttribute('href')?.startsWith('/api/export.')) return;
     event.preventDefault();event.stopImmediatePropagation();
     try {
+      if(window.AtlasIndia?.active){await window.AtlasIndia.exportCSV(new URL(anchor.href).searchParams);return;}
       await ready;
       const data = activeData, params = new URL(anchor.href).searchParams;
       const rows = sorted(selected(data,params),params);
