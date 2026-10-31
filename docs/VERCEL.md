@@ -1,34 +1,33 @@
-# Vercel deployment
+# Vercel public dataset dashboard
 
-This repository deploys a self-contained static dashboard design preview on Vercel. The complete Flask application source remains in the repository for local or persistent-server deployment.
+The user explicitly authorised publishing all uploaded company data after initially requesting code only. This deployment includes the imported master records and a browser-side read-only interface. The full Flask source is retained for backend development.
 
-## Deploy from GitHub
+## Deploy
 
-1. In Vercel, choose Add New → Project and import `kk9234282-art/one-sun`.
-2. Keep Root Directory at the repository root. Framework Preset is **Other** (specified by `framework: null`).
-3. Use the repository configuration: build `node scripts/build-preview.mjs`, output directory `public`, no installation command. No environment variables are required.
-4. Deploy. Open the HTTPS address provided by Vercel.
+Import `kk9234282-art/one-sun` into Vercel, or redeploy the existing project from `main`. Root Directory: repository root. Framework: **Other**. Build: `node scripts/build-preview.mjs`. Output: `public`. No installation command or environment variables are needed. Open the deployment address provided by Vercel.
 
-The preview has embedded CSS and no company records, aggregate dataset statistics, dataset reports or screenshots. Metrics display Unknown because no data is bundled; these are not zero-company statistics. Navigation links scroll to sections. It is marked read-only and does not pretend to provide live search or imports.
+## Published data
 
-## Local build verification
+The export contains 32,078 companies unique by CIN from the supplied Maharashtra Agriculture and Allied Activities file. It retains supplied names, CINs, classes, categories, status, registration dates, addresses, state, ROC, PIN code, capital, industry and listing labels. Two nonstandard CIN rows are preserved in a separate exceptions download and excluded from searchable totals.
+
+Records and data-derived statistics are public in GitHub and the deployed site. No accounts, password hashes, session keys, database files, backups, environment secrets or private local paths are included. The source is user-supplied, not independently authenticated. The date 2026-10-31 comes from the filename, not independently verified publication metadata. This subset is not complete Maharashtra or national coverage.
+
+## Functionality
+
+The existing UI uses `static/snapshot.js` for browser-side search, filters, sorting, pagination, profiles, charts, state exploration, research evidence indicators and CSV export of the entire filtered selection. The exported JSON loads once. Company data is rendered as text; spreadsheet formula prefixes are escaped in CSV.
+
+Missing revenue/profit values stay unknown and fail numeric financial thresholds. Only business history is assessable for research scoring. The score is not an official SEBI eligibility test or investment recommendation. LLPs, MSMEs and exchange securities remain separate empty universes because none were supplied; master listing labels do not create fictional security records.
+
+The deployment is public and read-only. Authentication, new imports, historical revisions and Excel export remain features of the full Flask application, not this static site. The source panel links to the checksum/coverage manifest and the separate CIN exceptions file.
+
+## Rebuild and verify
 
 ```sh
+.venv/bin/python scripts/export_public_dataset.py
 node scripts/build-preview.mjs
+.venv/bin/python tests/public_snapshot_smoke.py
 ```
 
-This writes `public/index.html` without Python dependencies or a database. It works in a clean checkout because `preview.html` is committed. The generated `public/` directory is ignored. No Flask function or server is launched by the Vercel configuration.
+Export only data authorised for publication. The exporter uses an explicit field allowlist and strips local source paths. The build works in a clean checkout without SQLite or Python. It verifies the exported JSON checksum and unique CIN count before copying the deployment and static UI assets to `public/`.
 
-## Full application hosting
-
-The current Flask application uses a persistent SQLite database. Vercel function filesystems do not provide durable shared SQLite storage, so running this application unchanged as a Vercel function would lose updates or fail on filesystem writes. We intentionally deploy the snapshot rather than advertise a working full backend there.
-
-For the full application now, use a persistent server/container with a protected database volume, following `docs/OPERATIONS.md`. To host the full application on Vercel, first migrate to a durable hosted database and durable file/object storage, adapt the serverless entry point and authentication provisioning, and test imports and concurrency. Those changes are not part of this static deployment and have not been verified.
-
-## What is published
-
-Application source, tests, generic documentation, Vercel configuration and the code-only HTML design preview. User-uploaded files and all data-bearing artifacts stay local and are excluded. The current commit history is also checked to exclude the previously prepared private preview. Local `instance/`, database backups, passwords, session keys, the virtual environment and `.env` files remain ignored.
-
-The export script defaults to a data-free preview. An explicitly requested `--include-data` export writes only to ignored `instance/previews/dashboard.html`. The Vercel build refuses previews lacking the code-only publication marker.
-
-An actual Vercel deployment is performed through your Vercel account after importing the GitHub repository.
+The browser test serves the actual export over local HTTP without Flask APIs and checks totals, pagination, search, profiles, filtered CSV, class/listing filters, exclusion of unknown financial values, source display and mobile layout. A successful build is not proof of a completed hosted Vercel deployment; that is managed by the user's Vercel project.

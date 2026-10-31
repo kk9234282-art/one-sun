@@ -1,16 +1,18 @@
 # Atlas — India Corporate Intelligence
 
-A working authenticated Flask application for traceable corporate research. Company master records, LLPs, MSME registrations, exchange securities and financial statements have separate tables and statistical universes. No company records or financial figures are fabricated. The styled preview contains no company records or dataset statistics; all uploaded data stays local.
+A working authenticated Flask application for traceable corporate research. Company master records, LLPs, MSME registrations, exchange securities and financial statements have separate tables and statistical universes. No company records or financial figures are fabricated. The user-authorised Vercel deployment includes the imported company records; databases, accounts and credentials remain excluded.
 
-## Deploy the styled preview on Vercel
+## Deploy the public dataset dashboard on Vercel
 
-Import `kk9234282-art/one-sun` into Vercel, use the repository root as Root Directory, and deploy. `vercel.json` sets Framework to Other, skips dependency installation, runs `node scripts/build-preview.mjs`, and serves `public/`. No environment variables are needed for this static deployment.
+Import `kk9234282-art/one-sun` into Vercel and deploy `main` from the repository root. Framework is **Other**, build command `node scripts/build-preview.mjs`, output directory `public`. No environment variables or Python dependencies are needed for this deployment.
 
-This serves the **styled, data-free design preview** from `preview.html`. CSS is embedded. Uploaded records, aggregate statistics, dataset reports, screenshots, SQLite databases, accounts, session keys and backups are excluded from GitHub and this deployment. Full search, profiles, authentication and imports are features of the Flask application, not the static Vercel preview. See [Vercel deployment details](docs/VERCEL.md).
+The user explicitly authorised publication of the uploaded company data. The deployment now includes **all 32,078 imported companies** from the Maharashtra Agriculture and Allied Activities subset, with browser-side search, filters, sorting, pagination, profiles, charts, research indicators and filtered CSV export. Two nonstandard CIN rows are preserved separately in `deployment/data/cin-exceptions.csv`. This is not complete Maharashtra or national coverage. Listing labels come from the supplied file; no revenue or profit figures were supplied.
 
-To regenerate the code-only preview, run `.venv/bin/python scripts/export_preview.py`, then commit `preview.html`. This default command does not open the local database. To inspect your data locally, use the full app or explicitly run `.venv/bin/python scripts/export_preview.py --include-data`; that private snapshot is saved under ignored `instance/previews/`, never to the published preview.
+`deployment/data/manifest.json` records coverage, record count and SHA-256 of the published data. The date 2026-10-31 is the filename's snapshot label, not an independently verified publication date. The build verifies the checksum and unique CIN count. It never opens the local SQLite database.
 
-**Data coverage:** no dataset is distributed with this repository. Import authorised files into the full application to populate its database. Source availability and configuration requirements are documented in [source status](docs/SOURCES.md).
+The deployed dashboard is public and read-only. Login, new imports, database revisions and financial-statement management require the full Flask application. No user accounts, passwords, session keys, databases or backups are published. See [Vercel details](docs/VERCEL.md).
+
+To refresh the authorised public export from your local database, run `.venv/bin/python scripts/export_public_dataset.py`, review `deployment/`, then commit and push. Use this command only for data authorised for publication. `scripts/export_preview.py` still generates a separate data-free design preview by default; `--include-data` creates an ignored private local snapshot.
 
 ## Run locally
 

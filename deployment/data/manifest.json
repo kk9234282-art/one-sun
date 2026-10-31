@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "publication_mode": "authorised-public-dataset",
+  "record_count": 32078,
+  "scope": [
+    {
+      "title": "Maharashtra \u2014 Agriculture and Allied Activities",
+      "scope": "User-provided agriculture subset only; not all Maharashtra companies or a national total.",
+      "date_basis": "2026-10-31 is the date in the supplied filename; official publication date has not been independently verified.",
+      "provenance": "User-supplied file; original publisher and publication date not independently verified.",
+      "as_of": "2026-10-31",
+      "inserted": 32078,
+      "updated": 0,
+      "rejected": 2
+    }
+  ],
+  "financial_records": 0,
+  "notice": "User authorised publication of all uploaded company data. Original publisher and source date not independently verified.",
+  "data_sha256": "f9f6680abaa233c810c1aebca8cf817715ee6375db5e478d28ed0af423e1f587"
+}
