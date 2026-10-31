@@ -40,7 +40,7 @@ function normalize(values,names,asOf) {
   const row={};names.forEach((key,i)=>{const value=values[i].trim();if(value&&!['na','n/a','null','none','-'].includes(value.toLowerCase()))row[key]=value;});
   if(!row.cin||!row.name)throw Error('Missing CIN or company name.');
   row.cin=row.cin.toUpperCase();
-  if(!/^[LU]\d{5}[A-Z]{2}\d{4}(PLC|PTC|OPC|NPL|GAP|SGC|GOI|FLC|FTC|ULL|ULT)\d{6}$/.test(row.cin))throw Error('Nonstandard CIN structure; preserved as an exception.');
+  if(!/^[LU]\d{5}[A-Z]{2}\d{4}[A-Z]{3}\d{6}$/.test(row.cin))throw Error('Nonstandard CIN structure; preserved as an exception.');
   if(row.class){row.registered_class=row.registered_class||row.class;const mapping={'private':'Private','public':'Public','private limited':'Private','public limited':'Public','one person company':'Private'};row.class=mapping[row.class.toLowerCase()];if(!row.class)throw Error('Unsupported company class.');}
   if(row.incorporated)row.incorporated=isoDate(row.incorporated);
   for(const key of ['authorised_capital','paid_up_capital'])if(row[key]!=null){const text=row[key].replaceAll(',','');if(!/^\+?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(text))throw Error('Invalid '+key);const amount=Number(text);if(!Number.isFinite(amount)||amount<0||amount>Number.MAX_SAFE_INTEGER)throw Error('Capital is negative, non-finite or too large for precise browser representation.');row[key]=amount;}

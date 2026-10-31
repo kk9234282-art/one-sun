@@ -11,6 +11,7 @@ import tempfile
 import threading
 import zipfile
 from playwright.sync_api import sync_playwright,expect
+from static_snapshot_fixture import legacy_server
 
 HEADERS=['CIN','Company Name','Company Registration Date','Company Category','Company Class','Listing Status','Authorized Capital','Paidup Capital','Company ROC','Company Address','Pin Code','Company State','Company Status','Company Sub Category','Company Industrial Classification']
 STATES=[('MH','Maharashtra'),('GJ','Gujarat'),('KA','Karnataka'),('TN','Tamil Nadu'),('DL','Delhi')]
@@ -21,7 +22,7 @@ def main():
     parser=argparse.ArgumentParser();parser.add_argument('--large',action='store_true');args=parser.parse_args()
     n=45000 if args.large else 1000
     root=Path(__file__).resolve().parents[1]
-    server=ThreadingHTTPServer(('127.0.0.1',0),partial(SimpleHTTPRequestHandler,directory=str(root/'public')))
+    server=legacy_server(root)
     thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
     try:
         with tempfile.TemporaryDirectory() as temp:

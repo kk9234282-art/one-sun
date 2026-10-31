@@ -227,3 +227,18 @@ def test_uploaded_terminal_statuses_and_coverage(app,tmp_path):
                    (import_id,'Test subset','Partial state/industry coverage','User filename date','Not independently verified','test-checksum','test-archive'))
         db.commit()
         assert overview(db,{})['datasets'][0]['scope']=='Partial state/industry coverage'
+
+
+@pytest.mark.parametrize('code',['PLN','GAT','UTC','PTL','NIL','SFC'])
+def test_structurally_valid_three_letter_cin_types(code):
+    from intelligence.ingest import normalize
+    row=normalize({'cin':f'U12345MH2010{code}000001','name':'Synthetic CIN-type fixture','class':'Public'},'companies','user_upload')
+    assert row['cin']==f'U12345MH2010{code}000001'
+    assert row['class']=='Public'  # Class comes from the field, never guessed from the CIN.
+
+
+@pytest.mark.parametrize('incorporated',['1111-11-11','9076-08-29'])
+def test_implausible_source_date_is_not_age_evidence(incorporated):
+    score=research_score({'incorporated':incorporated,'as_of':'2026-10-31'})
+    assert score['factors']['business_history']['points'] is None
+    assert score['assessable_points']==0

@@ -7,12 +7,13 @@ import io
 import json
 import threading
 from playwright.sync_api import sync_playwright,expect
+from static_snapshot_fixture import legacy_server
 
 
 def main():
     root=Path(__file__).resolve().parents[1]
-    manifest=json.loads((root/'public/data/manifest.json').read_text())
-    server=ThreadingHTTPServer(('127.0.0.1',0),partial(SimpleHTTPRequestHandler,directory=str(root/'public')))
+    manifest=json.loads((root/'deployment/data/manifest.json').read_text())
+    server=legacy_server(root)
     thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
     try:
         with sync_playwright() as p:

@@ -129,7 +129,10 @@ def research_score(row, weights=None):
     factors['profitability'] = None if revenue is None or revenue<=0 or profit is None else max(0,min(1,profit/revenue/0.15))
     assets, liabilities = row.get('assets_inr'), row.get('liabilities_inr')
     factors['financial_stability'] = None if assets is None or assets<=0 or liabilities is None else max(0,min(1,1-liabilities/assets))
-    factors['business_history'] = None if not row.get('incorporated') else max(0,min(1,(date.today()-date.fromisoformat(row['incorporated'])).days/365.2425/10))
+    incorporated = row.get('incorporated')
+    if incorporated == '1111-11-11' or (incorporated and incorporated > (row.get('as_of') or date.today().isoformat())):
+        incorporated = None
+    factors['business_history'] = None if not incorporated else max(0,min(1,(date.today()-date.fromisoformat(incorporated)).days/365.2425/10))
     # Master status and sector labels are insufficient evidence of compliance or prospects.
     factors['corporate_compliance'] = None
     factors['industry_prospects'] = None

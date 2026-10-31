@@ -1,4 +1,26 @@
-import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
+
+// National data lives in a separate immutable GitHub branch, not the site bundle.
+let national;
+try{national=JSON.parse(await readFile(new URL('../deployment/national/catalog.json',import.meta.url),'utf8'));}
+catch(error){if(error.code!=='ENOENT')throw error;}
+if(national){
+  if(national.schema_version!==2||national.publication_mode!=='authorised-public-dataset')throw Error('Invalid national catalog.');
+  if(!national.date_quality_applied)throw Error('Review and apply the source-date quality policy before deployment.');
+  if(!/^https:\/\/raw\.githubusercontent\.com\/[^/]+\/[^/]+\/[a-f0-9]{40}\/deployment\/national\/$/.test(national.base_url||''))throw Error('National data must point to an immutable GitHub commit.');
+  if(national.global_chunks.reduce((sum,item)=>sum+item.rows,0)!==national.record_count)throw Error('National index count mismatch.');
+  if(Object.values(national.states).reduce((sum,state)=>sum+state.stats.summary.companies,0)!==national.record_count)throw Error('State totals do not reconcile.');
+  if(Object.values(national.profile_buckets).reduce((sum,item)=>sum+item.rows,0)!==national.record_count)throw Error('Profile count mismatch.');
+  const html=await readFile(new URL('../deployment/index.html',import.meta.url),'utf8');
+  if(!html.includes('data-online-catalog="/national/catalog.json"'))throw Error('National HTML entry point is missing.');
+  const output=new URL('../public/',import.meta.url);await rm(output,{recursive:true,force:true});await mkdir(new URL('national/',output),{recursive:true});
+  await writeFile(new URL('index.html',output),html);
+  await cp(new URL('../deployment/national/catalog.json',import.meta.url),new URL('national/catalog.json',output));
+  await cp(new URL('../deployment/national/source-report.json',import.meta.url),new URL('national/source-report.json',output));
+  await cp(new URL('../intelligence/static/',import.meta.url),new URL('static/',output),{recursive:true});
+  console.log(`Built small national website: ${national.record_count} shared companies; compressed data loads on demand from GitHub.`);
+  process.exit(0);
+}
 
 // Build an explicitly authorised public export; never open the local database.
 const deployment = new URL('../deployment/', import.meta.url);

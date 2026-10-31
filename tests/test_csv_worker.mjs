@@ -21,6 +21,7 @@ assert.equal(normalized[fields.indexOf('class')],'Private');
 assert.equal(normalized[fields.indexOf('industry')],'Testing');
 assert.equal(normalized[fields.indexOf('nic')],null);
 assert.equal(normalized[fields.indexOf('incorporated')],'2024-02-29');
+assert.equal(normalize(['U12345MH2010PLN000001','Synthetic additional type','Public','Testing','2010-01-01','Unlisted'],names,'2026-10-31')[fields.indexOf('class')],'Public');
 assert.throws(()=>normalize(['U1234PMH2010PTC000001','Bad fixture','Private','Testing','2010-01-01','Unlisted'],names,'2026-10-31'),/CIN/);
 assert.throws(()=>normalize(['U12345MH2010PTC000001','Bad date','Private','Testing','2023-02-29','Unlisted'],names,'2026-10-31'),/calendar/);
 const file=new File(['CIN,Company Name\nU12345MH2010PTC000001,Synthetic valid fixture\ninvalid,Synthetic rejected fixture\n'],'worker-test.csv');

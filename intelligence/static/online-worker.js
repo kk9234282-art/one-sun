@@ -1,0 +1,80 @@
+/* Query the shared national static indices in bounded chunks. No paid backend. */
+'use strict';
+importScripts('vendor/fflate.js');
+(() => {
+  let catalog,base,viewGeneration=0;
+  const pendingChunks=new Map(),cache=new Map(),queryCache=new Map();
+  const inactive=new Set(['Strike Off','Struck Off','Dormant','Dissolved','Under Liquidation','Inactive','Amalgamated','Converted To Llp','Dissolved (Liquidated)','Dormant Under Section 455','Dissolved Under Section 59(8)','Dissolved Under Section 54']);
+  const weights={revenue_growth:25,profitability:20,financial_stability:20,business_history:15,corporate_compliance:10,industry_prospects:10};
+  const notice='Partial research indicator, not an official SEBI IPO eligibility test or investment recommendation. Missing evidence is unscored; points are not normalized to 100.';
+  function score(row){const age=row.incorporated?(Date.now()-Date.parse(row.incorporated+'T00:00:00Z'))/(365.2425*86400000):null,points=age===null?null:Math.round(Math.max(0,Math.min(1,age/10))*1500)/100;return {observed_points:points||0,assessable_points:points===null?0:15,maximum:100,factors:Object.fromEntries(Object.entries(weights).map(([key,maximum])=>[key,{maximum,points:key==='business_history'?points:null}])),notice};}
+  function clean(row){for(const key of ['financial_year','reporting_type','revenue_inr','profit_inr','assets_inr','liabilities_inr','revenue_growth','profit_growth','financial_source','financial_as_of'])row[key]=null;return row;}
+  function unpack(values,full=false){const fields=full?catalog.full_fields:catalog.index_fields;const row=Object.fromEntries(fields.map((field,i)=>[field,!full&&catalog.dictionaries[field]?catalog.dictionaries[field][values[i]]:values[i]]));if(!full){row.as_of=catalog.as_of||'2026-10-31';row.source_id='user_upload';}for(const field of catalog.full_fields)if(!(field in row))row[field]=null;const sourceDate=catalog.date_quality?.[row.cin];if(sourceDate){row.source_incorporated=sourceDate;row.incorporated=null;row.data_quality='The supplied incorporation date ('+sourceDate+') is implausible for this snapshot. It is preserved here but excluded from trends, date filters and business-history scores; no corrected date has been guessed.';}return clean(row);}
+  async function chunk(descriptor){
+    if(cache.has(descriptor.path)){const value=cache.get(descriptor.path);cache.delete(descriptor.path);cache.set(descriptor.path,value);return value;}
+    if(pendingChunks.has(descriptor.path))return pendingChunks.get(descriptor.path);
+    const task=(async()=>{const response=await fetch(new URL(descriptor.path,base));if(!response.ok)throw Error(`Shared data request failed (HTTP ${response.status}). Try again after a short pause.`);const bytes=new Uint8Array(await response.arrayBuffer());const digest=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(value=>value.toString(16).padStart(2,'0')).join('');if(digest!==descriptor.sha256)throw Error('A shared data chunk failed its checksum. Reload the site; no unverified records were used.');const rows=JSON.parse(new TextDecoder().decode(fflate.gunzipSync(bytes)));if(rows.length!==descriptor.rows)throw Error('A shared data chunk has an unexpected record count.');cache.set(descriptor.path,rows);while(cache.size>8)cache.delete(cache.keys().next().value);return rows;})();
+    pendingChunks.set(descriptor.path,task);try{return await task;}finally{pendingChunks.delete(descriptor.path);}
+  }
+  function profileBucket(cin){let hash=2166136261;for(const letter of cin)hash=Math.imul(hash^letter.charCodeAt(0),16777619)>>>0;return hash%1024;}
+  function relevant(p){return [...p].filter(([key,value])=>value&&!['page','per_page','sort','direction','reporting_type','fy'].includes(key));}
+  function knownStats(p){const filters=relevant(p);if(!filters.length)return catalog.stats;if(filters.length===1&&filters[0][0]==='state')return catalog.states[filters[0][1]]?.stats||new Stats().output();if(filters.length===1&&filters[0][0]==='industry')return catalog.industries[filters[0][1]]||new Stats().output();if(filters.length===1){const field=filters[0][0]==='listing'?'effective_listing':filters[0][0];if(catalog.facets?.[field])return catalog.facets[field][filters[0][1]]||new Stats().output();}return null;}
+  function noFinancialResults(p){return ['min_revenue','min_profit','min_revenue_growth','min_profit_growth'].some(key=>p.get(key)!==null&&p.get(key)!=='')||p.get('positive_profit')==='1';}
+  function matches(row,p){const q=(p.get('q')||'').toLowerCase();if(q&&!row.name.toLowerCase().includes(q)&&!row.cin.toLowerCase().includes(q))return false;for(const field of ['state','industry','class','status','district','nic'])if(p.get(field)&&p.get(field)!==row[field])return false;if(p.get('listing')&&p.get('listing')!==row.effective_listing)return false;for(const field of ['incorporated','as_of']){if(p.get(field+'_from')&&(!row[field]||row[field]<p.get(field+'_from')))return false;if(p.get(field+'_to')&&(!row[field]||row[field]>p.get(field+'_to')))return false;}if(p.get('min_capital')!==null&&p.get('min_capital')!==''&&(row.paid_up_capital==null||row.paid_up_capital<Number(p.get('min_capital'))))return false;if(p.get('min_age')&&(!row.incorporated||(Date.now()-Date.parse(row.incorporated+'T00:00:00Z'))/(365.2425*86400000)<Number(p.get('min_age'))))return false;return !noFinancialResults(p);}
+  class Stats{
+    constructor(){this.summary={companies:0,active:0,inactive:0,other_status:0,private:0,public:0,listed:0,unlisted:0,unknown_listing:0,financial_coverage:0,oldest:null,newest:null,llps:0,msmes:0,securities:0,unlinked_securities:0};this.groups=Object.fromEntries(['state','industry','class','status','effective_listing','trends','capital'].map(field=>[field,new Map()]));}
+    increment(field,label){const values=this.groups[field];values.set(label,(values.get(label)||0)+1);}
+    add(row){const s=this.summary;s.companies++;s[row.status==='Active'?'active':inactive.has(row.status)?'inactive':'other_status']++;if(row.class==='Private')s.private++;if(row.class==='Public')s.public++;s[row.effective_listing==='listed'?'listed':row.effective_listing==='unlisted'?'unlisted':'unknown_listing']++;if(!s.oldest||row.as_of<s.oldest)s.oldest=row.as_of;if(!s.newest||row.as_of>s.newest)s.newest=row.as_of;for(const field of ['state','industry','class','status','effective_listing'])this.increment(field,row[field]||'Unknown');if(row.incorporated)this.increment('trends',row.incorporated.slice(0,4));this.increment('capital',row.paid_up_capital==null?'Unknown':row.paid_up_capital<1e7?'< ₹1 crore':row.paid_up_capital<1e8?'₹1–10 crore':'≥ ₹10 crore');}
+    output(){return {summary:this.summary,groups:Object.fromEntries(Object.entries(this.groups).map(([field,map])=>[field,[...map].map(([label,count])=>({label,count})).sort((a,b)=>field==='trends'?a.label.localeCompare(b.label):b.count-a.count||a.label.localeCompare(b.label))]))};}
+  }
+  function compare(a,b,p){const field=p.get('sort')||'name',direction=p.get('direction')==='desc'?-1:1;if(a[field]==null&&b[field]!=null)return 1;if(b[field]==null&&a[field]!=null)return -1;const primary=typeof a[field]==='number'?a[field]-b[field]:String(a[field]||'').toUpperCase().localeCompare(String(b[field]||'').toUpperCase(),'en');return primary*direction||a.cin.localeCompare(b.cin);}
+  class TopRows{
+    constructor(limit,p){this.limit=limit;this.p=p;this.heap=[];}
+    worse(a,b){return compare(a,b,this.p)>0;}
+    add(row){const heap=this.heap;if(heap.length<this.limit){heap.push(row);let index=heap.length-1;while(index>0){const parent=(index-1)>>1;if(!this.worse(heap[index],heap[parent]))break;[heap[index],heap[parent]]=[heap[parent],heap[index]];index=parent;}return;}if(compare(row,heap[0],this.p)>=0)return;heap[0]=row;let index=0;while(true){const left=index*2+1,right=left+1;let next=index;if(left<heap.length&&this.worse(heap[left],heap[next]))next=left;if(right<heap.length&&this.worse(heap[right],heap[next]))next=right;if(next===index)break;[heap[index],heap[next]]=[heap[next],heap[index]];index=next;}}
+  }
+  async function* orderedChunks(list,parallel){for(let i=0;i<list.length;i+=parallel){const descriptors=list.slice(i,i+parallel),values=await Promise.all(descriptors.map(chunk));for(let j=0;j<values.length;j++)yield {descriptor:descriptors[j],values:values[j]};}}
+  async function scan(p){
+    const generation=viewGeneration,key=JSON.stringify([generation,[...p].sort()]);if(queryCache.has(key))return queryCache.get(key);
+    const task=(async()=>{
+      const page=Math.max(1,Number(p.get('page'))||1),perPage=Math.min(100,Math.max(1,Number(p.get('per_page'))||25)),offset=(page-1)*perPage;
+      if(noFinancialResults(p))return {rows:[],total:0,page,per_page:perPage,stats:new Stats().output()};
+      const known=knownStats(p),stats=known?null:new Stats(),state=p.get('state'),list=state?(catalog.states[state]?.chunks||[]):catalog.global_chunks;
+      const sequential=!p.get('sort')||p.get('sort')==='name',reverse=p.get('direction')==='desc';
+      if(!sequential&&offset+perPage>50000)throw Error('For deep pagination use company-name sorting or narrow the filters. Other sorts are limited to the first 50,000 matching rows.');
+      const heap=sequential?null:new TopRows(offset+perPage,p),visible=[];let count=0,processed=0;
+      const descriptors=reverse&&sequential?[...list].reverse():list;
+      const onlyOrderedSelection=known&&relevant(p).every(([field])=>field==='state');
+      let needed=descriptors;
+      if(onlyOrderedSelection&&sequential){let skip=0;while(skip<descriptors.length&&count+descriptors[skip].rows<=offset){count+=descriptors[skip].rows;skip++;}needed=descriptors.slice(skip);}
+      for await(const {descriptor,values}of orderedChunks(needed,known&&sequential?1:4)){
+        if(generation!==viewGeneration)throw Error('Search superseded by a newer view.');
+        const ordered=reverse&&sequential?[...values].reverse():values;
+        for(const value of ordered){const row=unpack(value);if(!matches(row,p))continue;if(stats)stats.add(row);if(sequential){if(count>=offset&&visible.length<perPage)visible.push(row);}else heap.add(row);count++;}
+        processed++;self.postMessage({type:'query-progress',processed,total:descriptors.length});
+        if(known&&sequential&&visible.length>=perPage)break;
+      }
+      const rows=sequential?visible:heap.heap.sort((a,b)=>compare(a,b,p)).slice(offset,offset+perPage);
+      return {rows,total:known?known.summary.companies:count,page,per_page:perPage,stats:known||stats.output()};
+    })();queryCache.set(key,task);while(queryCache.size>6)queryCache.delete(queryCache.keys().next().value);try{return await task;}catch(error){queryCache.delete(key);throw error;}
+  }
+  async function request(path){
+    const url=new URL(path,'https://online.invalid'),p=url.searchParams;
+    for(const key of ['min_revenue','min_profit','min_revenue_growth','min_profit_growth','min_capital','min_age'])if(p.get(key)!==null&&p.get(key)!==''&&!Number.isFinite(Number(p.get(key))))throw Error('Numeric filters must be finite.');
+    const sort=p.get('sort');if(sort&&!['name','cin','incorporated','paid_up_capital','revenue_inr','profit_inr','revenue_growth','as_of'].includes(sort))throw Error('Invalid sort column.');
+    if(url.pathname==='/api/options')return {state:Object.keys(catalog.states).sort(),industry:Object.keys(catalog.industries).sort(),class:['Private','Public'],status:catalog.stats.groups.status.map(row=>row.label).sort(),district:[],nic:[]};
+    if(url.pathname==='/api/overview')return {...(knownStats(p)||(await scan(p)).stats),datasets:catalog.datasets};
+    if(url.pathname==='/api/companies'||url.pathname==='/api/screen'){const screen=url.pathname==='/api/screen';if(screen)p.set('listing','unlisted');const {stats,...output}=await scan(p);return screen?{...output,rows:output.rows.map(row=>({...row,research_score:score(row)})),methodology:{weights,notice}}:output;}
+    if(url.pathname.startsWith('/api/company/')){const cin=decodeURIComponent(url.pathname.split('/').pop()).toUpperCase(),descriptor=catalog.profile_buckets[String(profileBucket(cin))];if(!descriptor)throw Error('Company not found.');const values=await chunk(descriptor),index=catalog.full_fields.indexOf('cin'),found=values.find(row=>row[index]===cin);if(!found)throw Error('Company not found.');const row=unpack(found,true);return {company:row,score:score(row),financials:[],field_sources:[],historical_names:[],securities:[],directors:[],filings:[],company_history:[],financial_history:[]};}
+    if(url.pathname.startsWith('/api/records/'))return {rows:[],total:0,page:Number(p.get('page'))||1,per_page:50};
+    if(url.pathname==='/api/date-quality')return {policy:catalog.date_quality_policy,rows:Object.entries(catalog.date_quality||{}).map(([cin,source_incorporated])=>({cin,source_incorporated}))};
+    if(url.pathname==='/api/sources')return {sources:[{id:'user_upload',name:'All-India company master — GitHub release',url:catalog.source.source_url,mode:'snapshot',status:'shared-online',checked_at:null,message:`${catalog.record_count.toLocaleString('en-IN')} unique imported company records; archive SHA-256 verified.`,note:catalog.source.notice}],imports:[]};
+    if(url.pathname==='/api/export.csv'){
+      if((await scan(p)).total>50000)throw Error('CSV exports are limited to 50,000 matching records. Narrow the state, industry or other filters.');
+      const columns=[...catalog.index_fields,'source_incorporated','data_quality'],lines=[columns.map(field=>field==='effective_listing'?'listing_status':field).join(',')],cell=value=>{let text=value==null?'':String(value);if(typeof value==='string'&&/^\s*[=+\-@]/.test(text))text="'"+text;return '"'+text.replaceAll('"','""')+'"';};const list=p.get('state')?catalog.states[p.get('state')]?.chunks||[]:catalog.global_chunks;
+      for(const descriptor of list)for(const value of await chunk(descriptor)){const row=unpack(value);if(matches(row,p))lines.push(columns.map(field=>cell(row[field])).join(','));}return '\ufeff'+lines.join('\r\n');
+    }
+    throw Error('This action requires the full application backend.');
+  }
+  self.onmessage=async event=>{const {id,action,...args}=event.data;try{let value;if(action==='begin-view'){viewGeneration++;value=true;}else if(action==='init'){const url=new URL(args.url,self.location.origin),response=await fetch(url);if(!response.ok)throw Error('Shared national catalog could not be loaded.');catalog=await response.json();if(catalog.schema_version!==2||catalog.publication_mode!=='authorised-public-dataset')throw Error('Unexpected national catalog format.');base=catalog.base_url||new URL('.',url).href;value={record_count:catalog.record_count,states:Object.keys(catalog.states).length,exceptions_url:new URL('exceptions.csv',base).href};}else value=await request(args.path);self.postMessage({type:'result',id,value});}catch(error){self.postMessage({type:'failure',id,message:error.message});}};
+})();

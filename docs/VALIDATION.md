@@ -1,5 +1,17 @@
 # Validation record
 
+## Shared national release (current)
+
+The public GitHub release archive was downloaded and its 216,238,578 bytes verified against GitHub SHA-256 `b6dfedff66c92f5eeff0caf5ea0b493c3cba00f6695413bd6a1c1b80fe0979dc`. Five CSV files expanded to 1,043,430,058 bytes. From 3,236,964 source rows, 3,236,908 unique company CINs were accepted; 55 malformed CINs and one negative paid-up-capital record were retained as exceptions; no valid duplicate CINs were found.
+
+All 1,697 compressed chunks were decompressed and checked against their SHA-256 and record counts. Global/state indices, profile buckets, national counts and 36-state totals reconcile. The maximum chunk is 280,367 bytes. The separate data-only GitHub branch was published; an actual public raw chunk returned HTTP 200 with CORS and matched its descriptor SHA-256. The Vercel output contains only the small UI/catalog/source report, under 1 MB, without bulk data or private state.
+
+The actual national static browser test passed: country count, bounded first-page download, state options, pagination, Maharashtra/name search, full profile details, original Orissa/Odisha state preservation, filtered CSV, 56 exceptions, mobile layout and no upload requests. Worker tests passed for search/state/pagination, bounded numeric sorting, missing financials, screening and CSV. The Python suite now has **30 passing tests**, including structural acceptance of additional three-letter CIN constitution codes. No paid service or new paid plan was enabled; hosted Vercel completion is not established by these local checks.
+
+Earlier validation stages below describe their historical scope; the current shared dataset is the national snapshot above, not only the initial agriculture subset or a local browser-only import.
+
+Final date-quality review identified 2,291 implausible incorporation dates among otherwise accepted records. The original values are retained, but incorporation trends/date filters/age scores withhold them without guessed corrections. Precomputed national/state/industry/class/status/listing trend counts were adjusted consistently. Worker and actual-data browser tests verify the raw date remains available while the analysis date and age score become unknown. This does not change the company count or silently rewrite the source chunks.
+
 Validated in the current cloud machine on 31 October 2026:
 
 - Python 3.12.14; Flask 3.1.2; Gunicorn 23.0.0; system Chromium.

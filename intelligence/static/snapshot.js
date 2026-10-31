@@ -1,8 +1,8 @@
 /* Public read-only transport for the same dashboard UI. No server credentials. */
 'use strict';
 (() => {
-  let activeData;
-  const ready = fetch('/data/companies.json').then(async response => {
+  let activeData,localOverride=false;
+  const ready = window.AtlasOnline?.enabled?Promise.resolve(activeData={manifest:{record_count:0},fields:['cin','name','class','registered_class','category','subcategory','status','incorporated','address','state','district','industry','nic','roc','postal_code','authorised_capital','paid_up_capital','effective_listing','source_id','as_of'],companies:[],byCin:new Map(),sources:[],datasets:[]}):fetch('/data/companies.json').then(async response => {
     if (!response.ok) throw new Error('Published company data could not be loaded.');
     const data = await response.json();
     if (data.manifest.publication_mode !== 'authorised-public-dataset') throw new Error('Unexpected dataset format.');
@@ -20,7 +20,9 @@
   const inactive = new Set(['Strike Off','Struck Off','Dormant','Dissolved','Under Liquidation','Inactive','Amalgamated','Converted To Llp','Dissolved (Liquidated)','Dormant Under Section 455','Dissolved Under Section 59(8)','Dissolved Under Section 54']);
   const weights = { revenue_growth:25, profitability:20, financial_stability:20, business_history:15, corporate_compliance:10, industry_prospects:10 };
   const notice = 'Partial research indicator, not an official SEBI IPO eligibility test or investment recommendation. Missing evidence is unscored; points are not normalized to 100.';
-  const age = row => row.incorporated ? (Date.now() - Date.parse(row.incorporated + 'T00:00:00Z')) / (365.2425 * 86400000) : null;
+  const analysisDate=row=>row.incorporated&&row.incorporated!=='1111-11-11'&&row.incorporated<=(row.as_of||new Date().toISOString().slice(0,10))?row.incorporated:null;
+  const reviewed=row=>analysisDate(row)||!row.incorporated?{...row}:{...row,source_incorporated:row.incorporated,incorporated:null,data_quality:'Implausible source date retained but withheld from date analyses and age scores; no corrected date inferred.'};
+  const age = row => analysisDate(row) ? (Date.now() - Date.parse(analysisDate(row) + 'T00:00:00Z')) / (365.2425 * 86400000) : null;
   function score(row) {
     const years = age(row);
     const points = years === null ? null : Math.round(Math.max(0, Math.min(1, years / 10)) * 1500) / 100;
@@ -35,8 +37,9 @@
       for (const field of exact) if (params.get(field) && row[field] !== params.get(field)) return false;
       if (params.get('listing') && row.effective_listing !== params.get('listing')) return false;
       for (const field of ['incorporated','as_of']) {
-        if (params.get(field + '_from') && (!row[field] || row[field] < params.get(field + '_from'))) return false;
-        if (params.get(field + '_to') && (!row[field] || row[field] > params.get(field + '_to'))) return false;
+        const value=field==='incorporated'?analysisDate(row):row[field];
+        if (params.get(field + '_from') && (!value || value < params.get(field + '_from'))) return false;
+        if (params.get(field + '_to') && (!value || value > params.get(field + '_to'))) return false;
       }
       const numeric = { min_revenue:'revenue_inr', min_profit:'profit_inr', min_revenue_growth:'revenue_growth', min_profit_growth:'profit_growth', min_capital:'paid_up_capital' };
       for (const [key, field] of Object.entries(numeric)) {
@@ -68,7 +71,7 @@
     const rows = sorted(selected(data,params), params);
     const page = Math.max(1, Number(params.get('page')) || 1);
     const per_page = Math.min(100, Math.max(1, Number(params.get('per_page')) || 25));
-    const visible = rows.slice((page-1)*per_page, page*per_page).map(row => screening ? {...row, research_score:score(row)} : {...row});
+    const visible = rows.slice((page-1)*per_page, page*per_page).map(row => screening ? {...reviewed(row), research_score:score(row)} : reviewed(row));
     return { rows:visible, total:rows.length, page, per_page, ...(screening ? {methodology:{weights, notice}} : {}) };
   }
   function grouping(rows, field) {
@@ -87,14 +90,15 @@
       listed:count(row=>row.effective_listing==='listed'), unlisted:count(row=>row.effective_listing==='unlisted'), unknown_listing:count(row=>row.effective_listing==='unknown'),
       financial_coverage:0, oldest:dates[0]||null, newest:dates[dates.length-1]||null, llps:0, msmes:0, securities:0, unlinked_securities:0 };
     const groups = Object.fromEntries(['state','industry','class','effective_listing','status'].map(field=>[field,grouping(rows,field)]));
-    groups.trends = grouping(rows.filter(row=>row.incorporated),row=>row.incorporated.slice(0,4)).sort((a,b)=>a.label.localeCompare(b.label));
+    groups.trends = grouping(rows.filter(row=>analysisDate(row)),row=>analysisDate(row).slice(0,4)).sort((a,b)=>a.label.localeCompare(b.label));
     groups.capital = grouping(rows,row=>row.paid_up_capital==null?'Unknown':row.paid_up_capital<1e7?'< ₹1 crore':row.paid_up_capital<1e8?'₹1–10 crore':'≥ ₹10 crore');
     return {summary,groups,datasets:data.datasets};
   }
   window.AtlasSnapshot = {
-    async restorePublished(){activeData=await ready;window.dispatchEvent(new Event('atlas-data-changed'));},
+    async restorePublished(){localOverride=false;activeData=await ready;window.dispatchEvent(new Event('atlas-data-changed'));},
     async request(path, options={}) {
       if(window.AtlasIndia?.active)return window.AtlasIndia.request(path,options);
+      if(window.AtlasOnline?.enabled&&!localOverride)return window.AtlasOnline.request(path,options);
       if (options.method && options.method !== 'GET') throw new Error('This public deployment is read-only. Use the full application to import or update data.');
       await ready;
       const data = activeData, url = new URL(path, location.origin), params = url.searchParams;
@@ -109,7 +113,7 @@
       if (url.pathname.startsWith('/api/company/')) {
         const row = data.byCin.get(decodeURIComponent(url.pathname.split('/').pop()));
         if (!row) throw new Error('Company not found in published data.');
-        return {company:{...row},score:score(row),field_sources:[],financials:[],historical_names:[],securities:[],directors:[],filings:[],company_history:[],financial_history:[]};
+        return {company:reviewed(row),score:score(row),field_sources:[],financials:[],historical_names:[],securities:[],directors:[],filings:[],company_history:[],financial_history:[]};
       }
       throw new Error('This action is unavailable in the read-only dataset deployment.');
     }
@@ -121,6 +125,7 @@
     event.preventDefault();event.stopImmediatePropagation();
     try {
       if(window.AtlasIndia?.active){await window.AtlasIndia.exportCSV(new URL(anchor.href).searchParams);return;}
+      if(window.AtlasOnline?.enabled&&!localOverride){await window.AtlasOnline.exportCSV(new URL(anchor.href).searchParams);return;}
       await ready;
       const data = activeData, params = new URL(anchor.href).searchParams;
       const rows = sorted(selected(data,params),params);
@@ -147,7 +152,7 @@
       if(match)document.querySelector('#local-csv-date').value=match[0];
     });
     cancel.addEventListener('click',()=>{generation++;worker?.terminate();worker=null;localForm.querySelector('button[type=submit]').disabled=false;cancel.hidden=true;status.textContent='Cancelled. Previously loaded records were retained.';});
-    restore.addEventListener('click',async()=>{generation++;worker?.terminate();worker=null;activeData=await ready;lastImport=null;parts.replaceChildren();status.textContent='Restored the published dataset. Local CSV changes were discarded.';cancel.hidden=true;localForm.querySelector('button[type=submit]').disabled=false;refresh();});
+    restore.addEventListener('click',async()=>{generation++;worker?.terminate();worker=null;localOverride=false;activeData=await ready;lastImport=null;parts.replaceChildren();status.textContent='Restored the published dataset. Local CSV changes were discarded.';cancel.hidden=true;localForm.querySelector('button[type=submit]').disabled=false;refresh();});
     localForm.addEventListener('submit',async event=>{
       event.preventDefault();
       const file=document.querySelector('#local-csv-file').files[0],asOf=document.querySelector('#local-csv-date').value;
@@ -184,6 +189,7 @@
             if(company.effective_listing==null)company.effective_listing='unknown';
             merged.set(cin,company);if(previous)updated++;else added++;
           }
+          localOverride=true;
           activeData={...base,companies:[...merged.values()],byCin:merged,manifest:{...base.manifest,record_count:merged.size},datasets:[{
             title:'Local CSV: '+file.name,scope:`This browser only. ${incoming.size.toLocaleString('en-IN')} distinct valid CINs from the selected file; merged by CIN with previously loaded records. State-wide completeness has not been independently verified.`,
             date_basis:asOf+' is the user-selected snapshot label, not an independently verified publication date.',provenance:'User-selected local file; no file contents uploaded to this site.'

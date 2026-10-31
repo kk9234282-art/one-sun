@@ -10,3 +10,6 @@ public/
 .vercel/
 docs/MAHARASHTRA_AGRICULTURE.md
 docs/dashboard-preview.png
+/deployment/national/index/
+/deployment/national/profiles/
+/deployment/national/exceptions.csv

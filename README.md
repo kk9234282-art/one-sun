@@ -1,18 +1,20 @@
 # Atlas — India Corporate Intelligence
 
-A working authenticated Flask application for traceable corporate research. Company master records, LLPs, MSME registrations, exchange securities and financial statements have separate tables and statistical universes. No company records or financial figures are fabricated. The user-authorised Vercel deployment includes the imported company records; databases, accounts and credentials remain excluded.
+A working authenticated Flask application for traceable corporate research. Company master records, LLPs, MSME registrations, exchange securities and financial statements have separate tables and statistical universes. No company records or financial figures are fabricated. The user-authorised Vercel deployment includes shared all-India company-master records; databases, accounts and credentials remain excluded.
 
-## Deploy the public dataset dashboard on Vercel
+## Shared all-India online dashboard — free static deployment
 
-Import `kk9234282-art/one-sun` into Vercel and deploy `main` from the repository root. Framework is **Other**, build command `node scripts/build-preview.mjs`, output directory `public`. No environment variables or Python dependencies are needed for this deployment.
+The shared dataset is now built from the user-published GitHub Release [india-data-v1](https://github.com/kk9234282-art/one-sun/releases/tag/india-data-v1). It contains **3,236,908 unique accepted company CINs across 36 canonical state/UT labels**, from 3,236,964 source rows. Fifty-five malformed CINs and one negative paid-up-capital record are preserved separately, without guessed corrections. No duplicate valid CINs were found. No financial statements were supplied.
 
-The user explicitly authorised publication of the uploaded company data. The deployment now includes **all 32,078 imported companies** from the Maharashtra Agriculture and Allied Activities subset, with browser-side search, filters, sorting, pagination, profiles, charts, research indicators and filtered CSV export. Two nonstandard CIN rows are preserved separately in `deployment/data/cin-exceptions.csv`. This is not complete Maharashtra or national coverage. Listing labels come from the supplied file; no revenue or profit figures were supplied.
+The website runs on the current Vercel static setup. Code and a small national catalog are on `main`; compressed query/profile chunks are pinned to an immutable commit on the separate `data/india-index-v1` GitHub branch. **Do not merge the data-only branch into main or deploy it as the website.** The Vercel website output is under 1 MB; the approximately 419 MB of indexed data stays on GitHub and loads in bounded chunks only when needed. No paid database, serverless query service, Git LFS or new paid plan is used. Provider free-plan rules and usage limits still apply; this is not unlimited hosting.
 
-`deployment/data/manifest.json` records coverage, record count and SHA-256 of the published data. The date 2026-10-31 is the filename's snapshot label, not an independently verified publication date. The build verifies the checksum and unique CIN count. It never opens the local SQLite database.
+Visitors do not choose or upload files to browse the shared records. National/state/industry summaries are precomputed, name-sorted directory pages load only the required index chunks, and profiles fetch one checksum-verified bucket. Broad substring searches or complex filters may scan more compressed indices; selecting a state reduces transfer and latency. The worker retains a bounded cache rather than loading the original 1.04 GB CSV dataset into RAM.
 
-The deployed dashboard is public and read-only. Login, new imports, database revisions and financial-statement management require the full Flask application. No user accounts, passwords, session keys, databases or backups are published. See [Vercel details](docs/VERCEL.md).
+Import this repository into Vercel or redeploy `main`. Root Directory: repository root. Framework: **Other**. Build: `node scripts/build-preview.mjs`. Output: `public`. No environment variables or Python dependencies are needed for the static website. The build validates catalog counts and immutable GitHub URLs and excludes bulk data from the website bundle.
 
-To refresh the authorised public export from your local database, run `.venv/bin/python scripts/export_public_dataset.py`, review `deployment/`, then commit and push. Use this command only for data authorised for publication. `scripts/export_preview.py` still generates a separate data-free design preview by default; `--include-data` creates an ignored private local snapshot.
+Source registration/listing labels are user-supplied and not independently authenticated against MCA/NSE/BSE. The date 2026-10-31 is the filename label, not proof of official publication date. Registered entities are not necessarily operating businesses. The dataset is not certified as an exhaustive national census. Original state labels are retained alongside documented current-name aliases. See [release/validation report](docs/INDIA_RELEASE.md) and [Vercel architecture](docs/VERCEL.md).
+
+Local CSV/ZIP tools remain available as separate browser-only views. **Use published data** switches back to the shared national dataset. Accounts, session keys, local uploads, SQLite files and backups are not published. The full authenticated Flask application's private local database is separate from the national static build cache.
 
 ## Large CSV files that cannot be attached in chat
 

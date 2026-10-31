@@ -107,7 +107,7 @@ def normalize(raw, kind, source):
     for key in ('cin', 'llpin', 'isin', 'exchange', 'registration_id'):
         if key in values:
             values[key] = str(values[key]).upper()
-    if 'cin' in values and not re.fullmatch(r'[LU]\d{5}[A-Z]{2}\d{4}(?:PLC|PTC|OPC|NPL|GAP|SGC|GOI|FLC|FTC|ULL|ULT|PTC)\d{6}', values['cin']):
+    if 'cin' in values and not re.fullmatch(r'[LU]\d{5}[A-Z]{2}\d{4}[A-Z]{3}\d{6}', values['cin']):
         raise ValueError('Invalid CIN')
     if kind == 'llps' and not re.fullmatch(r'[A-Z]{3}-\d{4}', values['llpin']):
         raise ValueError('Invalid LLPIN')
