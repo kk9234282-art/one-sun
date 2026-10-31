@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+.pytest_cache/
+instance/
+*.pyc
+.env
+.env.*
+!.env.example
+public/
+.vercel/
+docs/MAHARASHTRA_AGRICULTURE.md
+docs/dashboard-preview.png

@@ -1,0 +1,4 @@
+{% extends 'base.html' %}{% block body %}
+<main class="login"><div class="brand">◈ ATLAS <span>INDIA</span></div><p class="eyebrow">CORPORATE INTELLIGENCE</p><h1>A clearer view of<br>Indian enterprise.</h1><p>Source-backed research. Transparent coverage. Connected intelligence.</p>
+<form method="post" class="login-card"><h2>Sign in to your workspace</h2><input type="hidden" name="csrf_token" value="{{ session.csrf }}"><label>Username<input name="username" autocomplete="username" required maxlength="100"></label><label>Password<input name="password" type="password" autocomplete="current-password" required></label>{% if error %}<p role="alert" class="error">{{ error }}</p>{% endif %}<button type="submit">Sign in →</button><small>Administrators provision accounts through the server CLI. No default credentials.</small></form></main>
+{% endblock %}
