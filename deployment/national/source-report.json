@@ -1,0 +1,54 @@
+{
+  "source_url": "https://github.com/kk9234282-art/one-sun/releases/download/india-data-v1/company_master_data_2026-10-31.zip",
+  "source_sha256": "b6dfedff66c92f5eeff0caf5ea0b493c3cba00f6695413bd6a1c1b80fe0979dc",
+  "source_rows": 3236964,
+  "valid_rows": 3236908,
+  "rejected_rows": 56,
+  "unique_companies": 3236908,
+  "duplicate_valid_rows": 0,
+  "files": [
+    {
+      "name": "company_master_data_2026-10-31_part1.csv",
+      "source_rows": 800000,
+      "valid_rows": 800000,
+      "rejected_rows": 0,
+      "zip_crc32": "7223ad4d"
+    },
+    {
+      "name": "company_master_data_2026-10-31_part2.csv",
+      "source_rows": 800000,
+      "valid_rows": 799948,
+      "rejected_rows": 52,
+      "zip_crc32": "8a7f867e"
+    },
+    {
+      "name": "company_master_data_2026-10-31_part3.csv",
+      "source_rows": 800000,
+      "valid_rows": 799997,
+      "rejected_rows": 3,
+      "zip_crc32": "78cec714"
+    },
+    {
+      "name": "company_master_data_2026-10-31_part4.csv",
+      "source_rows": 800000,
+      "valid_rows": 799999,
+      "rejected_rows": 1,
+      "zip_crc32": "4f2c4933"
+    },
+    {
+      "name": "company_master_data_2026-10-31_part5.csv",
+      "source_rows": 36964,
+      "valid_rows": 36964,
+      "rejected_rows": 0,
+      "zip_crc32": "7bff3f7f"
+    }
+  ],
+  "state_aliases": {
+    "Orissa": "Odisha",
+    "Pondicherry": "Puducherry",
+    "Jammu & Kashmir": "Jammu and Kashmir",
+    "Dadra & Nagar Haveli": "Dadra and Nagar Haveli and Daman and Diu",
+    "Daman And Diu": "Dadra and Nagar Haveli and Daman and Diu"
+  },
+  "notice": "User-supplied public release; source publication date and national completeness not independently verified. 2026-10-31 is the filename date label. Structurally valid identifiers are not proof of official registration."
+}
