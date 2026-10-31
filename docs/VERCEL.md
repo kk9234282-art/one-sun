@@ -22,6 +22,16 @@ The deployment is public and read-only. Authentication, new imports, historical 
 
 ## Rebuild and verify
 
+### Open a CSV larger than the chat transfer limit
+
+Expand **Open a large company CSV from your computer**, select the file, confirm the snapshot date label and click **Load CSV in this browser**. The file is streamed in a worker without sending its contents to Vercel or the chat. Valid records merge by CIN; older snapshots do not overwrite newer records. Duplicate rows in the selected file use the last structurally valid row. Entire-file parse errors discard the pending load; **Cancel reading** and **Restore published data** are available.
+
+The local load updates search, charts, profiles and exports in that tab only. It disappears on reload. This is not a server import or a persistent publication. Browser memory limits still apply; desktop use is recommended for large datasets. CSV must be UTF-8. Only mapped company-master fields are transferred; the original source file should be retained for any unrecognized columns or later reprocessing.
+
+**Create smaller files for this chat** prepares download buttons for normalized CSV parts at most 8 MiB each, plus a separate exceptions file when needed. These parts contain all distinct valid records from the selected file, not the whole combined browser dataset. Download each part and attach it in chat so the backend import and shared publication can be completed. No automatic upload or GitHub write occurs from the browser.
+
+Parser validation covers quoted commas/newlines/escaped quotes, BOM, CRLF across streamed chunks, CINs, class, date and capital formats. It preserves original registered class and textual industry labels, keeps missing financials unknown, and reports nonstandard CINs rather than correcting them.
+
 ```sh
 .venv/bin/python scripts/export_public_dataset.py
 node scripts/build-preview.mjs

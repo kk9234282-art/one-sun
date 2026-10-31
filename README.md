@@ -14,6 +14,14 @@ The deployed dashboard is public and read-only. Login, new imports, database rev
 
 To refresh the authorised public export from your local database, run `.venv/bin/python scripts/export_public_dataset.py`, review `deployment/`, then commit and push. Use this command only for data authorised for publication. `scripts/export_preview.py` still generates a separate data-free design preview by default; `--include-data` creates an ignored private local snapshot.
 
+## Large CSV files that cannot be attached in chat
+
+The Vercel dashboard has **Open a large company CSV from your computer**. Select the original CSV and its snapshot date label, then **Load CSV in this browser**. A streaming worker validates rows and merges by CIN without uploading the file. Use a desktop browser with sufficient available memory. This changes only the current browser tab and is discarded on reload; it does not update the shared deployment.
+
+Choose **Create smaller files for this chat** to automatically prepare normalized CSV parts of at most 8 MiB each. Download and attach those parts in chat to enable permanent import/publication. The parts contain the selected file's unique valid records, not merely the visible page. Duplicate CINs use the last structurally valid row; exceptions are separate. No manual CSV splitting or compression is required.
+
+Tests: `node tests/test_csv_worker.mjs` and `.venv/bin/python tests/large_csv_browser_smoke.py`. The latter uses a temporary synthetic CSV larger than 32 MiB and verifies overlap/deduplication, complete bounded exports, malformed-file rollback, restore and zero upload requests. It does not import or publish synthetic records in the application database.
+
 ## Run locally
 
 Python 3.12 and SQLite 3.35+; no Redis, Node build, CDN or external database required. SQLite WAL is suitable for a small research deployment with concurrent readers and one importing writer. National-scale multi-user operations require the database/job architecture described in [operations](docs/OPERATIONS.md).
