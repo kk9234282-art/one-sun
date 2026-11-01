@@ -10,7 +10,7 @@ BASE = f"""WITH ranked AS (
  SELECT f.*,ROW_NUMBER() OVER(PARTITION BY cin ORDER BY financial_year DESC) AS rn
  FROM financials f WHERE reporting_type=:reporting_type AND (:fy='' OR financial_year=CAST(:fy AS INTEGER))
 ), latest AS (SELECT *, CASE unit WHEN 'INR crore' THEN 10000000 WHEN 'INR lakh' THEN 100000 ELSE 1 END AS multiplier FROM ranked WHERE rn=1)
-SELECT c.*, address_locality(c.address,c.state,c.postal_code) AS city, CASE WHEN {LISTED} THEN 'listed' ELSE COALESCE(c.listing_status,'unknown') END AS effective_listing,
+SELECT c.*, pin_district(c.postal_code,c.state) AS city, CASE WHEN {LISTED} THEN 'listed' ELSE COALESCE(c.listing_status,'unknown') END AS effective_listing,
  f.financial_year, f.reporting_type, f.revenue*f.multiplier AS revenue_inr, f.net_profit*f.multiplier AS profit_inr,
  f.assets*f.multiplier AS assets_inr, f.liabilities*f.multiplier AS liabilities_inr,
  CASE WHEN p.revenue>0 THEN (f.revenue*f.multiplier/(p.revenue*CASE p.unit WHEN 'INR crore' THEN 10000000 WHEN 'INR lakh' THEN 100000 ELSE 1 END)-1)*100 END AS revenue_growth,
@@ -27,11 +27,11 @@ def query(args):
     if params['fy'] and not str(params['fy']).isdigit():
         raise ValueError('Financial year must be an integer')
     conditions = []
-    for field in ('state','industry','class','status','district','nic','city'):
+    for field in ('state','industry','class','status','district','nic','city','roc','postal_code'):
         if args.get(field):
             conditions.append(f'lower({field})=lower(:{field})' if field=='city' else f'{field}=:{field}')
             params[field] = args[field]
-    if args.get('city')=='(Not identified)':
+    if str(args.get('city','')).strip().lower()=='(not identified)':
         conditions.remove('lower(city)=lower(:city)');conditions.append('city IS NULL')
     if args.get('q'):
         params['q'] = '%' + args['q'].replace('\\','\\\\').replace('%','\\%').replace('_','\\_') + '%'

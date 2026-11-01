@@ -30,7 +30,7 @@
       factors:Object.fromEntries(Object.entries(weights).map(([key, maximum]) => [key, { maximum, points:key === 'business_history' ? points : null }])), notice };
   }
   function selected(data, params) {
-    const exact = ['state','industry','class','status','district','nic'];
+    const exact = ['state','industry','class','status','district','nic','roc','postal_code'];
     const q = (params.get('q') || '').toLowerCase();
     return data.companies.filter(row => {
       const city=window.AtlasLocality.derive(row);row.city=city;if(params.get('city')&&(params.get('city').toLowerCase()==='(not identified)'?!!city:(city||'').toLowerCase()!==params.get('city').toLowerCase()))return false;
@@ -101,10 +101,10 @@
       if(window.AtlasIndia?.active)return window.AtlasIndia.request(path,options);
       if(window.AtlasOnline?.enabled&&!localOverride)return window.AtlasOnline.request(path,options);
       if (options.method && options.method !== 'GET') throw new Error('This public deployment is read-only. Use the full application to import or update data.');
-      await ready;
+      await ready;await window.AtlasLocality.ready;
       const data = activeData, url = new URL(path, location.origin), params = url.searchParams;
       switch (url.pathname) {
-        case '/api/options': {const result=Object.fromEntries(['state','industry','class','status','district','nic'].map(field=>[field,[...new Set(data.companies.map(row=>row[field]).filter(Boolean))].sort()]));const rows=params.get('state')?data.companies.filter(row=>row.state===params.get('state')):[],cities=rows.map(row=>window.AtlasLocality.derive(row));return {...result,city:[...new Set(cities.filter(Boolean))].sort(),city_unknown:cities.filter(value=>!value).length};}
+        case '/api/options': {const result=Object.fromEntries(['state','industry','class','status','district','nic'].map(field=>[field,[...new Set(data.companies.map(row=>row[field]).filter(Boolean))].sort()]));const rows=params.get('state')?data.companies.filter(row=>row.state===params.get('state')):[],cities=rows.map(row=>window.AtlasLocality.derive(row));return {...result,roc:[...new Set(rows.map(row=>row.roc).filter(Boolean))].sort(),postal_code:[...new Set(rows.map(row=>row.postal_code).filter(Boolean))].sort(),city:[...new Set(cities.filter(Boolean))].sort(),city_unknown:cities.filter(value=>!value).length};}
         case '/api/companies': return directory(data,params);
         case '/api/screen': return directory(data,params,true);
         case '/api/overview': return overview(data,params);
@@ -127,7 +127,7 @@
     try {
       if(window.AtlasIndia?.active){await window.AtlasIndia.exportCSV(new URL(anchor.href).searchParams);return;}
       if(window.AtlasOnline?.enabled&&!localOverride){await window.AtlasOnline.exportCSV(new URL(anchor.href).searchParams);return;}
-      await ready;
+      await ready;await window.AtlasLocality.ready;
       const data = activeData, params = new URL(anchor.href).searchParams;
       const rows = sorted(selected(data,params),params);
       const safe = value => {

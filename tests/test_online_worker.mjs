@@ -24,11 +24,12 @@ catalog.facets={class:{Private:stats(raw.filter(row=>row[2]===1)),Public:stats(r
 catalog.date_quality={[raw[2][0]]:'1111-11-11'};
 catalog.data_commit='fixture-commit';
 const stateChunk=catalog.states.Maharashtra.chunks[0];
-const cityChunk=asset('cities/map.gz',[1,0]);cityChunk.cin_order_sha256=createHash('sha256').update(raw.filter(row=>row[7]===1).map(row=>row[0]).join('\n')).digest('hex');
-const cityBody=Buffer.from(JSON.stringify({source_data_commit:catalog.data_commit,labels:[null,'Pune'],counts:[1,1],chunks:{[stateChunk.path]:cityChunk}}));
+const cityChunk=asset('cities/map.gz',[[1,1,'411001'],[0,2,'999999']]);cityChunk.cin_order_sha256=createHash('sha256').update(raw.filter(row=>row[7]===1).map(row=>row[0]).join('\n')).digest('hex');
+const cityBody=Buffer.from(JSON.stringify({source_data_commit:catalog.data_commit,mapping_version:2,labels:[null,'Pune'],rocs:[null,'ROC Mumbai','ROC Pune'],postal_codes:['411001','999999'],counts:[1,1],chunks:{[stateChunk.path]:cityChunk}}));
 files.set('https://fixture.invalid/national/cities/state.json',cityBody);
 catalog.locations={base_url:'https://fixture.invalid/national/',states:{Maharashtra:{path:'cities/state.json',sha256:createHash('sha256').update(cityBody).digest('hex')}}};
 files.set('https://fixture.invalid/national/catalog.json',Buffer.from(JSON.stringify(catalog)));
+files.set('/static/pin-districts.json',await readFile(new URL('../intelligence/static/pin-districts.json',import.meta.url)));
 const waiting=new Map();let sequence=0;
 const context={URL,TextEncoder,TextDecoder,Response,crypto:webcrypto,location:{origin:'https://fixture.invalid'},fetch:async url=>{const body=files.get(String(url));return new Response(body||'',{status:body?200:404});},postMessage:message=>{if(message.type==='query-progress')return;const waiter=waiting.get(message.id);waiting.delete(message.id);if(message.type==='failure')waiter.reject(Error(message.message));else waiter.resolve(message.value);}};
 context.self=context;vm.createContext(context);
@@ -60,4 +61,7 @@ assert.equal((await request('/api/companies?state=Maharashtra&city=(Not%20identi
 assert.equal((await request('/api/companies?state=Maharashtra&city=Missing')).total,0);
 assert.deepEqual([...(await request('/api/options?state=Maharashtra')).city],['Pune']);
 assert.ok((await request('/api/export.csv?state=Maharashtra&city=Pune')).includes('ALPHA ONE'));
+assert.equal((await request('/api/companies?state=Maharashtra&city=Pune&roc=ROC%20Mumbai&postal_code=411001')).total,1);
+assert.equal((await request('/api/companies?state=Maharashtra&city=Pune&roc=ROC%20Pune')).total,0);
+assert.equal((await request('/api/companies?state=Maharashtra&postal_code=999999')).rows[0].name,'BETA THREE');
 console.log('National online worker tests passed: paginated/state/search queries, numeric sort, profiles, missing financials, screening and filtered CSV.');

@@ -12,14 +12,14 @@ for state,descriptor in manifest['states'].items():
 env=os.environ.copy();env['GIT_INDEX_FILE']=str(root/'instance/build/city-branch.index')
 def git(*args,input=None):return subprocess.check_output(['git',*args],input=input,env=env).decode().strip()
 git('read-tree','--empty');git('add','-f','--',*paths)
-for path,body in [('vercel.json',json.dumps({'git':{'deploymentEnabled':False}})),('DATASET.md','# Address-derived locality labels\n\n'+manifest['policy']+'\n\nSource company snapshot: '+catalog['data_commit']+'\n\nSidecars align by CIN checksum with the immutable state indices. No geocoding or external city claims. Website code lives on main.\n')]:
+for path,body in [('vercel.json',json.dumps({'git':{'deploymentEnabled':False}})),('DATASET.md','# PIN-based districts, ROC and PIN filters\n\n'+manifest['policy']+'\n\nSource company snapshot: '+catalog['data_commit']+'\n\nSidecars align by CIN checksum with the immutable state indices. No address parsing; district labels are not municipal cities. Website code lives on main.\n')]:
     blob=git('hash-object','-w','--stdin',input=body.encode());git('update-index','--add','--cacheinfo','100644',blob,path)
-tree=git('write-tree');branch='data/india-localities-v1'
+tree=git('write-tree');branch='data/india-postal-v2'
 existing=subprocess.run(['git','rev-parse','--verify','refs/heads/'+branch],capture_output=True,text=True)
 if existing.returncode==0:
     commit=existing.stdout.strip();assert git('rev-parse',commit+'^{tree}')==tree,'Use a new version for changed data'
 else:
-    commit=git('commit-tree',tree,'-m','Publish address-derived locality sidecars v1');git('update-ref','refs/heads/'+branch,commit)
+    commit=git('commit-tree',tree,'-m','Publish PIN district and source ROC sidecars v2');git('update-ref','refs/heads/'+branch,commit)
 catalog['locations']={**manifest,'base_url':f'https://raw.githubusercontent.com/kk9234282-art/one-sun/{commit}/deployment/cities/','data_commit':commit,'data_branch':branch}
 catalog_path.write_text(json.dumps(catalog,ensure_ascii=False,separators=(',',':')))
 print(json.dumps({'commit':commit,'matched':manifest['matched'],'unknown':manifest['unknown'],'files':len(paths)}))

@@ -58,7 +58,18 @@ def main():
             expect(page.locator('#result-count')).to_have_text(indian(count)+' records',timeout=120000)
             result=page.evaluate("async()=>await AtlasSnapshot.request('/api/companies?state=Maharashtra&city=Pune')")
             assert result['total']==count and all(row['city']=='Pune' for row in result['rows'])
-            form.locator('[name=city]').fill('')
+            # PIN and ROC come from structured master fields, independent of address text.
+            first=result['rows'][0];assert first['postal_code'] and first['roc']
+            form.locator('[name=postal_code]').fill(first['postal_code']);form.locator('[name=roc]').select_option(first['roc'])
+            form.get_by_role('button',name='Apply filters',exact=True).click()
+            combined=page.evaluate("async row=>await AtlasSnapshot.request('/api/companies?'+new URLSearchParams({state:'Maharashtra',city:'Pune',postal_code:row.postal_code,roc:row.roc}))",first)
+            expect(page.locator('#result-count')).to_have_text(indian(combined['total'])+' records',timeout=120000)
+            assert 0<combined['total']<=count
+            assert all(row['city']=='Pune' and row['postal_code']==first['postal_code'] and row['roc']==first['roc'] for row in combined['rows'])
+            with page.expect_download(timeout=120000) as download:page.locator('#export-csv').click()
+            exported=list(csv.DictReader(io.StringIO(Path(download.value.path()).read_text(encoding='utf-8-sig'))))
+            assert len(exported)==combined['total'] and all(row['postal_code']==first['postal_code'] and row['roc']==first['roc'] and row['city_source']=='pin-postal-district' for row in exported)
+            form.locator('[name=city]').fill('');form.locator('[name=postal_code]').fill('');form.locator('[name=roc]').select_option('')
             form.locator('[name=q]').fill('GRAMGROW');form.get_by_role('button',name='Apply filters',exact=True).click()
             expect(page.locator('#result-count')).to_have_text('1 records',timeout=120000)
             page.get_by_role('button',name='GRAMGROW PRIVATE LIMITED',exact=True).click()

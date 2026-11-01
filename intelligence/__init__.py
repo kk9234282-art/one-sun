@@ -147,8 +147,10 @@ def create_app(config=None):
         values={field:[r[0] for r in db.execute(f'SELECT DISTINCT {field} FROM companies WHERE {field} IS NOT NULL ORDER BY {field}')]
                         for field in ('state','industry','class','status','district','nic')}
         state=request.args.get('state')
-        cities=[row[0] for row in db.execute('SELECT DISTINCT address_locality(address,state,postal_code) AS city FROM companies WHERE state=? ORDER BY city',(state,))] if state else []
+        cities=[row[0] for row in db.execute('SELECT DISTINCT pin_district(postal_code,state) AS city FROM companies WHERE state=? ORDER BY city',(state,))] if state else []
         values.update(city=[value for value in cities if value],city_unknown=int(None in cities))
+        for field in ('roc','postal_code'):
+            values[field]=[row[0] for row in db.execute(f'SELECT DISTINCT {field} FROM companies WHERE state=? AND {field} IS NOT NULL ORDER BY {field}',(state,))] if state else []
         return jsonify(values)
 
     @app.get('/api/company/<cin>')

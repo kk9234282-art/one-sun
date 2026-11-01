@@ -12,7 +12,7 @@ def connect(path):
     db = sqlite3.connect(path, timeout=30)
     db.row_factory = sqlite3.Row
     from .locality import derive
-    db.create_function('address_locality',3,derive,deterministic=True)
+    db.create_function('pin_district',2,derive,deterministic=True)
     db.execute('PRAGMA foreign_keys=ON')
     db.execute('PRAGMA journal_mode=WAL')
     return db
