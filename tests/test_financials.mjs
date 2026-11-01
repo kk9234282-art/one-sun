@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+global.self=global;await import('../intelligence/static/financials.js');
+const cin='L12345MH2010PLC000001';
+const record=changes=>({cin,financial_year:2025,reporting_type:'standalone',unit:'INR lakh',period_end:'2025-03-31',period_months:12,revenue:100,net_profit:-2,assets:null,liabilities:null,expenses:null,ebitda:null,source_id:'bse',source_url:'https://www.bseindia.com/statement.pdf',as_of:'2025-05-20',...changes});
+const statements=new AtlasFinancial.Statements([record({}),record({financial_year:2024,period_end:'2024-03-31',as_of:'2024-05-20',unit:'INR',revenue:10000000,net_profit:-100000}),record({reporting_type:'consolidated',unit:'INR crore',revenue:2,net_profit:0})]);
+let row=statements.attach({cin},new URLSearchParams());assert.equal(row.revenue_inr,10000000);assert.equal(row.profit_inr,-200000);assert.equal(row.revenue_growth,0);assert.equal(row.profit_growth,null);assert.equal(row.assets_inr,null);assert.equal(row.financial_year,2025);
+row=statements.attach({cin},new URLSearchParams({reporting_type:'consolidated'}));assert.equal(row.revenue_inr,20000000);assert.equal(row.profit_inr,0);assert.equal(row.revenue_growth,null);
+row=statements.attach({cin},new URLSearchParams({fy:'2024'}));assert.equal(row.financial_year,2024);assert.equal(row.revenue_inr,10000000);
+row=statements.attach({cin},new URLSearchParams({fy:'2023'}));assert.equal(row.revenue_inr,null);assert.equal(row.financial_year,null);assert.equal(row.financial_source,null);
+assert.equal(statements.attach({cin:'L12345MH2010PLC000002'}).revenue_inr,null);
+assert.equal(statements.history(cin).length,3);
+assert.throws(()=>new AtlasFinancial.Statements([record({}),record({})]),/duplicate/);
+assert.throws(()=>new AtlasFinancial.Statements([record({period_months:3})]),/invalid/);
+assert.throws(()=>new AtlasFinancial.Statements([record({period_end:'2025-02-30'})]),/invalid/);
+assert.throws(()=>new AtlasFinancial.Statements([record({unit:'USD'})]),/invalid/);
+assert.throws(()=>new AtlasFinancial.Statements([record({revenue:Infinity})]),/non-finite/);
+console.log('Financial statement tests passed: exact CIN, year/basis isolation, units, zero/losses, annual growth, missing values, source provenance and invalid-record rejection.');

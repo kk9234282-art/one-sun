@@ -37,7 +37,8 @@ files.set('/static/pin-districts.json',await readFile(new URL('../intelligence/s
 const waiting=new Map(),requested=[];let sequence=0;
 const context={URL,TextEncoder,TextDecoder,Response,crypto:webcrypto,location:{origin:'https://fixture.invalid'},fetch:async url=>{requested.push(String(url));const body=files.get(String(url));return new Response(body||'',{status:body?200:404});},postMessage:message=>{if(message.type==='query-progress')return;const waiter=waiting.get(message.id);waiting.delete(message.id);if(message.type==='failure')waiter.reject(Error(message.message));else waiter.resolve(message.value);}};
 context.self=context;vm.createContext(context);
-context.importScripts=(...paths)=>{for(const path of paths)vm.runInContext(path==='locality.js'?locality:vendor,context);};
+context.importScripts=(...paths)=>{for(const path of paths)vm.runInContext(path==='locality.js'?locality:path==='financials.js'?financialCode:vendor,context);};
+const financialCode=await readFile(new URL('../intelligence/static/financials.js',import.meta.url),'utf8');
 const locality=await readFile(new URL('../intelligence/static/locality.js',import.meta.url),'utf8');
 const vendor=await readFile(new URL('../intelligence/static/vendor/fflate.js',import.meta.url),'utf8');
 vm.runInContext(await readFile(new URL('../intelligence/static/online-worker.js',import.meta.url),'utf8'),context);
@@ -84,4 +85,19 @@ assert.equal((await request('/api/companies?state=Maharashtra&city=Pune&postal_c
 for(const band of ['under_1cr','1_to_10cr','10cr_plus','unknown']){assert.equal((await request('/api/companies?capital_band='+band)).total,1);assert.equal((await request('/api/overview?capital_band='+band)).summary.companies,1);}
 const middle=await request('/api/export.csv?capital_band=1_to_10cr');assert.ok(middle.includes('ALPHA TWO')&&!middle.includes('ALPHA ONE')&&!middle.includes('GAMMA FOUR'));
 await assert.rejects(()=>request('/api/companies?capital_band=invalid'),/Invalid paid-up capital range/);
+// Financial overlay fixtures are synthetic and exist only in this in-memory worker test.
+const annual=changes=>({cin:raw[0][0],financial_year:2025,reporting_type:'standalone',unit:'INR lakh',period_end:'2025-03-31',period_months:12,revenue:150,net_profit:-2,assets:null,liabilities:null,expenses:null,ebitda:null,source_id:'bse',source_url:'https://www.bseindia.com/synthetic-test.pdf',as_of:'2025-05-20',...changes});
+catalog.financials={...asset('financials/statements.gz',[annual({}),annual({financial_year:2024,period_end:'2024-03-31',as_of:'2024-05-20',unit:'INR crore',revenue:1,net_profit:0.1}),annual({reporting_type:'consolidated',unit:'INR crore',revenue:2,net_profit:0})]),schema_version:1,source_data_commit:catalog.data_commit};
+files.set('https://fixture.invalid/national/catalog.json',Buffer.from(JSON.stringify(catalog)));await call('init',{url:'/national/catalog.json'});
+let financial=(await request('/api/companies?listing=listed&capital_band=under_1cr')).rows[0];assert.equal(financial.revenue_inr,15000000);assert.equal(financial.profit_inr,-200000);assert.equal(financial.revenue_growth,50);assert.equal(financial.profit_growth,-120);assert.equal(financial.financial_year,2025);
+financial=(await request('/api/companies?listing=listed&reporting_type=consolidated')).rows[0];assert.equal(financial.revenue_inr,20000000);assert.equal(financial.profit_inr,0);
+financial=(await request('/api/companies?listing=listed&fy=2024')).rows[0];assert.equal(financial.revenue_inr,10000000);assert.equal(financial.financial_year,2024);
+financial=(await request('/api/companies?listing=listed&fy=2023')).rows[0];assert.equal(financial.revenue_inr,null);
+assert.equal((await request('/api/companies?min_revenue=12000000')).total,1);
+assert.equal((await request('/api/companies?listing=listed&positive_profit=1')).total,0);
+assert.equal((await request('/api/companies?listing=listed&positive_profit=1&fy=2024')).total,1);
+assert.equal((await request('/api/overview')).summary.financial_coverage,1);
+assert.equal((await request('/api/overview?listing=listed&fy=2023')).summary.financial_coverage,0);
+const financialProfile=await request('/api/company/'+raw[0][0]);assert.equal(financialProfile.financials.length,3);assert.equal(financialProfile.company.revenue_inr,15000000);assert.equal(financialProfile.score.assessable_points,60);assert.equal(financialProfile.score.factors.profitability.points,0);
+const financialCSV=await request('/api/export.csv?listing=listed');assert.ok(financialCSV.includes('revenue_inr')&&financialCSV.includes('15000000')&&financialCSV.includes('-200000')&&financialCSV.includes('https://www.bseindia.com/synthetic-test.pdf'));
 console.log('National online worker tests passed: paginated/state/search queries, numeric sort, profiles, missing financials, screening and filtered CSV.');
