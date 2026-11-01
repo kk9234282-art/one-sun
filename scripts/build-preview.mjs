@@ -21,12 +21,18 @@ if(national){
     if(financial.schema_version!==1||financial.source_data_commit!==national.data_commit||!national.listed_index||!financial.rows||!financial.covered_companies||financial.covered_companies>national.listed_index.rows)throw Error('Financial statements do not match the listed-company snapshot.');
     if(!/^https:\/\/raw\.githubusercontent\.com\/[^/]+\/[^/]+\/[a-f0-9]{40}\/deployment\/financials\/financials-[a-f0-9]{12}\.json\.gz$/.test(financial.path)||!/^[a-f0-9]{64}$/.test(financial.sha256))throw Error('Financial statements must use immutable data and a checksum.');
   }
+  if(national.active_summary){
+    const descriptor=national.active_summary;
+    if(descriptor.source_data_commit!==national.data_commit||descriptor.companies!==national.stats.summary.active||!/^\/national\/active-summary-[a-f0-9]{12}\.json\.gz$/.test(descriptor.path))throw Error('Active-company summary does not match the national source.');
+    const body=await readFile(new URL('../deployment'+descriptor.path,import.meta.url));const {createHash}=await import('node:crypto');if(createHash('sha256').update(body).digest('hex')!==descriptor.sha256)throw Error('Active-company summary checksum mismatch.');
+  }
   const html=await readFile(new URL('../deployment/index.html',import.meta.url),'utf8');
   if(!html.includes('data-online-catalog="/national/catalog.json"'))throw Error('National HTML entry point is missing.');
   const output=new URL('../public/',import.meta.url);await rm(output,{recursive:true,force:true});await mkdir(new URL('national/',output),{recursive:true});
   await writeFile(new URL('index.html',output),html);
   await cp(new URL('../deployment/national/catalog.json',import.meta.url),new URL('national/catalog.json',output));
   await cp(new URL('../deployment/national/source-report.json',import.meta.url),new URL('national/source-report.json',output));
+  if(national.active_summary)await cp(new URL('../deployment'+national.active_summary.path,import.meta.url),new URL(national.active_summary.path.slice(1),output));
   try{await cp(new URL('../deployment/national/financial-source-report.json',import.meta.url),new URL('national/financial-source-report.json',output));}catch(error){if(error.code!=='ENOENT')throw error;}
   await cp(new URL('../intelligence/static/',import.meta.url),new URL('static/',output),{recursive:true});
   console.log(`Built small national website: ${national.record_count} shared companies; compressed data loads on demand from GitHub.`);

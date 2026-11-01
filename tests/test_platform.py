@@ -287,3 +287,19 @@ def test_paid_up_capital_ranges_have_no_overlap(app,client,tmp_path):
             assert overview(db,{'capital_band':band})['summary']['companies']==count
         assert directory(db,{'capital_band':'under_1cr','min_capital':'10000000'})['total']==0
     assert client.get('/api/companies?capital_band=invalid').status_code==400
+
+
+def test_active_scope_options_totals_and_export(app,client,tmp_path):
+    with app.app_context():
+        load(get_db(),tmp_path,'companies',[
+            company(postal_code='411001'),
+            company(CIN2,status='Strike Off',state='Karnataka',industry='Inactive only',postal_code='560001'),
+        ])
+    options=client.get('/api/options?status=Active').get_json()
+    assert options['state']==['Maharashtra']
+    assert 'Inactive only' not in options['industry']
+    assert client.get('/api/overview?status=Active').get_json()['summary']['companies']==1
+    rows=client.get('/api/companies?status=Active').get_json()
+    assert rows['total']==1 and rows['rows'][0]['cin']==CIN
+    exported=client.get('/api/export.csv?status=Active').get_data(as_text=True)
+    assert CIN in exported and CIN2 not in exported

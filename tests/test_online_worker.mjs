@@ -32,6 +32,10 @@ catalog.locations.global_chunks={};
 for(let i=0;i<globalChunks.length;i++){const descriptor=asset('cities/global'+i+'.gz',i===0?['411001','380001']:['999999','380001']);descriptor.cin_order_sha256=createHash('sha256').update(raw.slice(i*2,i*2+2).map(row=>row[0]).join('\n')).digest('hex');catalog.locations.global_chunks[globalChunks[i].path]=descriptor;}
 const listedRows=raw.filter(row=>row[11]===1).map(row=>{const values=row.map((value,i)=>dictionaries[fields[i]]?dictionaries[fields[i]][value]:value);return [...values,'Synthetic address','Original state','synthetic.csv','2026-10-31','user_upload','411001'];});
 catalog.listed_index={...asset('listed/companies.gz',listedRows),source_data_commit:catalog.data_commit,full_fields:catalog.full_fields};
+const activeRows=raw.filter(row=>row[5]===1);
+const activeState=stats([raw[0]]);activeState.groups.district=[{label:'Pune',count:1}];activeState.groups.postal_city=[{label:'Pune City',count:1}];
+const active={schema_version:1,source_data_commit:catalog.data_commit,status:'Active',national:stats(activeRows),states:{Maharashtra:{stats:activeState,postal_codes:['411001'],areas_by_district:{Pune:[{label:'Pune City',count:1}]}},Gujarat:{stats:stats(activeRows.filter(row=>row[7]===2)),postal_codes:['380001'],areas_by_district:{}}},industries:{Testing:stats(activeRows)},facets:{class:{Private:stats([raw[0]]),Public:stats(activeRows.filter(row=>row[2]===2))},capital_band:{under_1cr:stats([raw[0]]),unknown:stats([])}}};
+catalog.active_summary={...asset('active-summary.gz',[active]),path:'/national/active-summary.gz',source_data_commit:catalog.data_commit,companies:3};
 files.set('https://fixture.invalid/national/catalog.json',Buffer.from(JSON.stringify(catalog)));
 files.set('/static/pin-districts.json',await readFile(new URL('../intelligence/static/pin-districts.json',import.meta.url)));
 const waiting=new Map(),requested=[];let sequence=0;
@@ -101,3 +105,13 @@ assert.equal((await request('/api/overview?listing=listed&fy=2023')).summary.fin
 const financialProfile=await request('/api/company/'+raw[0][0]);assert.equal(financialProfile.financials.length,3);assert.equal(financialProfile.company.revenue_inr,15000000);assert.equal(financialProfile.score.assessable_points,60);assert.equal(financialProfile.score.factors.profitability.points,0);
 const financialCSV=await request('/api/export.csv?listing=listed');assert.ok(financialCSV.includes('revenue_inr')&&financialCSV.includes('15000000')&&financialCSV.includes('-200000')&&financialCSV.includes('https://www.bseindia.com/synthetic-test.pdf'));
 console.log('National online worker tests passed: paginated/state/search queries, numeric sort, profiles, missing financials, screening and filtered CSV.');
+
+assert.equal((await request('/api/overview?status=Active')).summary.companies,3);
+const activeGeo=await request('/api/overview?status=Active&state=Maharashtra');
+assert.equal(activeGeo.summary.companies,1);assert.equal(activeGeo.groups.district.reduce((n,row)=>n+row.count,0),1);
+const activeOptions=await request('/api/options?status=Active&state=Maharashtra');
+assert.deepEqual([...activeOptions.postal_code],['411001']);assert.deepEqual([...activeOptions.city],['Pune']);
+assert.equal((await request('/api/overview?status=Active&capital_band=unknown')).summary.companies,0);
+assert.equal((await request('/api/companies?status=Active')).total,3);
+assert.ok(!(await request('/api/export.csv?status=Active')).includes('BETA THREE'));
+console.log('Active-only totals, state geography, filter choices, capital facets, directory and exports passed.');

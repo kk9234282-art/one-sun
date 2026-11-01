@@ -143,16 +143,14 @@ def create_app(config=None):
 
     @app.get('/api/options')
     def options():
-        db = get_db()
-        values={field:[r[0] for r in db.execute(f'SELECT DISTINCT {field} FROM companies WHERE {field} IS NOT NULL ORDER BY {field}')]
-                        for field in ('state','industry','class','status','district','nic')}
-        state=request.args.get('state')
-        cities=[row[0] for row in db.execute('SELECT DISTINCT pin_district(postal_code,state) AS city FROM companies WHERE state=? ORDER BY city',(state,))] if state else []
+        db=get_db();status=request.args.get('status','');state=request.args.get('state','');district=request.args.get('city','')
+        values={field:[row[0] for row in db.execute(f"SELECT DISTINCT {field} FROM companies WHERE {field} IS NOT NULL AND (?='' OR status=?) ORDER BY {field}",(status,status))] for field in ('state','industry','class','status','district','nic')}
+        cities=[row[0] for row in db.execute("SELECT DISTINCT pin_district(postal_code,state) AS city FROM companies WHERE state=? AND (?='' OR status=?) ORDER BY city",(state,status,status))] if state else []
         values.update(city=[value for value in cities if value],city_unknown=int(None in cities))
         for field in ('roc','postal_code'):
-            values[field]=[row[0] for row in db.execute(f'SELECT DISTINCT {field} FROM companies WHERE state=? AND {field} IS NOT NULL ORDER BY {field}',(state,))] if state else []
-        area_rows=[row[0] for row in db.execute("SELECT DISTINCT pin_area(postal_code,state) FROM companies WHERE state=? AND (?='' OR lower(COALESCE(pin_district(postal_code,state),'(Not identified)'))=lower(?)) ORDER BY 1",(state,request.args.get('city',''),request.args.get('city','')))] if state else []
-        values.update(postal_city=[value for value in area_rows if value],postal_city_unknown=int(None in area_rows))
+            values[field]=[row[0] for row in db.execute(f"SELECT DISTINCT {field} FROM companies WHERE state=? AND {field} IS NOT NULL AND (?='' OR status=?) ORDER BY {field}",(state,status,status))] if state else []
+        areas=[row[0] for row in db.execute("SELECT DISTINCT pin_area(postal_code,state) FROM companies WHERE state=? AND (?='' OR status=?) AND (?='' OR lower(COALESCE(pin_district(postal_code,state),'(Not identified)'))=lower(?)) ORDER BY 1",(state,status,status,district,district))] if state else []
+        values.update(postal_city=[value for value in areas if value],postal_city_unknown=int(None in areas))
         return jsonify(values)
 
     @app.get('/api/company/<cin>')
