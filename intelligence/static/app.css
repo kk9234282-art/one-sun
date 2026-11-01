@@ -8,3 +8,5 @@
 @media(max-width:600px){.filters>label{position:relative}.field-help{position:static}.help-tooltip{left:0;right:0;width:auto;max-width:none}}
 
 .geography-chart{max-height:360px;overflow:auto}.geography-chart .bar-row{grid-template-columns:minmax(110px,1.4fr) minmax(30px,1fr) 65px}
+
+.financial-download{max-width:100%;white-space:normal;overflow-wrap:anywhere;margin:10px 8px 0 0;line-height:1.5}

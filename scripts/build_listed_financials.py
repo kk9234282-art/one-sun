@@ -9,7 +9,7 @@ from intelligence.financial_data import build
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('csv',type=Path);args=parser.parse_args();root=Path(__file__).resolve().parents[1];catalog=json.loads((root/'deployment/national/catalog.json').read_text());listed_manifest=json.loads((root/'instance/build/listed-index/manifest.json').read_text());assert listed_manifest['source_data_commit']==catalog['data_commit']
-    values=json.loads(gzip.decompress((root/'instance/build/listed-index'/listed_manifest['path']).read_bytes()));cin_column=catalog['full_fields'].index('cin');listed={row[cin_column] for row in values};rows,report=build(args.csv,listed)
+    values=json.loads(gzip.decompress((root/'instance/build/listed-index'/listed_manifest['path']).read_bytes()));cin_column=catalog['full_fields'].index('cin');listed={row[cin_column] for row in values if row[catalog['full_fields'].index('status')]=='Active' and row[catalog['full_fields'].index('effective_listing')]=='listed'};rows,report=build(args.csv,listed)
     output=root/'instance/build/listed-financials';output.mkdir(parents=True,exist_ok=True);(output/'validation-report.json').write_text(json.dumps(report,indent=2))
     if report['rejected_rows']:raise SystemExit(f"{report['rejected_rows']} rows rejected. Review validation-report.json; no financial dataset was prepared.")
     if not rows:raise SystemExit('No valid real statements supplied; no dataset prepared.')

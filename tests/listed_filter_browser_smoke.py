@@ -29,6 +29,7 @@ try:
  with sync_playwright() as p:
   browser=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True);page=browser.new_page(viewport={'width':1440,'height':1000},accept_downloads=True);errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
   page.goto(f'http://127.0.0.1:{server.server_port}/');expect(page.locator('#result-count')).to_have_text('21,89,416 records',timeout=30000)
+  expect(page.get_by_role('link',name='Download Active listed revenue / profit CSV',exact=True)).to_have_attribute('href',f'http://127.0.0.1:{server.server_port}/national/active-listed-financials.csv')
   start=len(seen);form=page.locator('#filters');form.locator('[name=listing]').select_option('listed');form.locator('[name=capital_band]').select_option('under_1cr');clock=time.perf_counter();form.get_by_role('button',name='Apply filters',exact=True).click();expect(page.locator('#result-count')).to_have_text(f'{expected:,} records',timeout=10000);timings['filter_seconds']=round(time.perf_counter()-clock,3)
   rows=page.evaluate("async()=>await AtlasSnapshot.request('/api/companies?status=Active&listing=listed&capital_band=under_1cr')")
   assert rows['total']==expected and len(rows['rows'])==25 and all(row['status']=='Active' and row['effective_listing']=='listed' and row['paid_up_capital'] is not None and row['paid_up_capital']<10000000 for row in rows['rows'])

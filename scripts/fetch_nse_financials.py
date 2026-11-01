@@ -22,7 +22,7 @@ def stamp(text):
 
 def main():
     catalog=json.loads((ROOT/'deployment/national/catalog.json').read_text());listed_meta=json.loads((ROOT/'instance/build/listed-index/manifest.json').read_text());import gzip
-    listed_values=json.loads(gzip.decompress((ROOT/'instance/build/listed-index'/listed_meta['path']).read_bytes()));listed={row[catalog['full_fields'].index('cin')] for row in listed_values}
+    listed_values=json.loads(gzip.decompress((ROOT/'instance/build/listed-index'/listed_meta['path']).read_bytes()));listed={row[catalog['full_fields'].index('cin')] for row in listed_values if row[catalog['full_fields'].index('status')]=='Active' and row[catalog['full_fields'].index('effective_listing')]=='listed'}
     identities=json.loads((FOLDER/'issuer-identities.json').read_text());pairs=defaultdict(list)
     for row in identities:
         if row.get('cin') in listed and re.fullmatch(r'[LU]\d{5}[A-Z]{2}\d{4}[A-Z]{3}\d{6}',row['cin']):pairs[(row['symbol'],row['isin'])].append(row)
