@@ -16,7 +16,7 @@ from static_snapshot_fixture import legacy_server
 HEADERS=['CIN','Company Name','Company Registration Date','Company Category','Company Class','Listing Status','Authorized Capital','Paidup Capital','Company ROC','Company Address','Pin Code','Company State','Company Status','Company Sub Category','Company Industrial Classification']
 STATES=[('MH','Maharashtra'),('GJ','Gujarat'),('KA','Karnataka'),('TN','Tamil Nadu'),('DL','Delhi')]
 def values(code,state,i,large):
-    return [f'U12345{code}2010PTC{i:06d}',f'Synthetic ZIP {state} company {i:06d}','2010-01-01','Company limited by shares','Private','Unlisted','500000','' if i==1 else '100000','ROC Test','Synthetic address '+('x'*(900 if large else 150)),'400001',state,'Active','Non-government company','Synthetic ZIP industry']
+    return [f'U12345{code}2010PTC{i:06d}',f'Synthetic ZIP {state} company {i:06d}','2010-01-01','Company limited by shares','Private','Unlisted','500000','' if i==1 else '100000','ROC Test',('Office,Bengaluru,Bangalore,Karnataka,400001-India' if code=='KA' and i==0 else 'Synthetic address '+('x'*(900 if large else 150))),'400001',state,'Active','Non-government company','Synthetic ZIP industry']
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--large',action='store_true');args=parser.parse_args()
@@ -61,6 +61,11 @@ def main():
                 assert len(counts['groups']['state'])==5
                 form=page.locator('#filters');form.locator('[name=state]').select_option('Karnataka');form.get_by_role('button',name='Apply filters',exact=True).click()
                 expect(page.locator('#result-count')).to_have_text(('45,000' if args.large else '1,000')+' records',timeout=30000)
+                options=page.evaluate("async()=>await AtlasSnapshot.request('/api/options?state=Karnataka')")
+                assert options['city']==['Bengaluru'] and options['city_unknown']==n-1
+                form.locator('[name=city]').fill('Bengaluru');form.get_by_role('button',name='Apply filters',exact=True).click()
+                expect(page.locator('#result-count')).to_have_text('1 records',timeout=30000)
+                form.locator('[name=city]').fill('')
                 response=page.evaluate("async()=>await AtlasSnapshot.request('/api/companies?sort=paid_up_capital&direction=desc&per_page=100')")
                 assert len(response['rows'])==100 and all(row['paid_up_capital'] is not None for row in response['rows'])
                 form.locator('[name=q]').fill('U12345KA2010PTC000000');form.get_by_role('button',name='Apply filters',exact=True).click()

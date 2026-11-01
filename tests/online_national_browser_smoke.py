@@ -23,7 +23,7 @@ def main():
         def translate_path(self,path):
             parsed=unquote(urlsplit(path).path)
             if parsed=='/':return str(root/'deployment/index.html')
-            for prefix,directory in [('/static/',root/'intelligence/static'),('/national/',root/'deployment/national')]:
+            for prefix,directory in [('/cities/',root/'deployment/cities'),('/static/',root/'intelligence/static'),('/national/',root/'deployment/national')]:
                 if parsed.startswith(prefix):
                     target=(directory/parsed[len(prefix):]).resolve()
                     return str(target) if target.is_relative_to(directory.resolve()) else str(root/'nonexistent')
@@ -32,6 +32,7 @@ def main():
             seen.append(urlsplit(self.path).path)
             if urlsplit(self.path).path=='/national/catalog.json':
                 data=dict(catalog);data['base_url']=f'http://127.0.0.1:{self.server.server_port}/national/'
+                data['locations']={**data['locations'],'base_url':f'http://127.0.0.1:{self.server.server_port}/cities/'}
                 body=json.dumps(data).encode();self.send_response(200);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(body)));self.end_headers();self.wfile.write(body)
             else:super().do_GET()
     server=ThreadingHTTPServer(('127.0.0.1',0),Handler);thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
@@ -50,6 +51,14 @@ def main():
             page.locator('#next').click();expect(page.locator('#page-info')).to_contain_text('Page 2')
             form=page.locator('#filters');form.locator('[name=state]').select_option('Maharashtra');form.get_by_role('button',name='Apply filters',exact=True).click()
             expect(page.locator('#result-count')).to_have_text(indian(catalog['states']['Maharashtra']['stats']['summary']['companies'])+' records',timeout=30000)
+            expect(form.locator('[name=city]')).to_be_enabled()
+            form.locator('[name=city]').fill('Pune');form.get_by_role('button',name='Apply filters',exact=True).click()
+            city_data=json.loads((root/'deployment/cities'/catalog['locations']['states']['Maharashtra']['path']).read_text())
+            count=city_data['counts'][city_data['labels'].index('Pune')]
+            expect(page.locator('#result-count')).to_have_text(indian(count)+' records',timeout=120000)
+            result=page.evaluate("async()=>await AtlasSnapshot.request('/api/companies?state=Maharashtra&city=Pune')")
+            assert result['total']==count and all(row['city']=='Pune' for row in result['rows'])
+            form.locator('[name=city]').fill('')
             form.locator('[name=q]').fill('GRAMGROW');form.get_by_role('button',name='Apply filters',exact=True).click()
             expect(page.locator('#result-count')).to_have_text('1 records',timeout=120000)
             page.get_by_role('button',name='GRAMGROW PRIVATE LIMITED',exact=True).click()

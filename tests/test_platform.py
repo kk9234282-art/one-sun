@@ -242,3 +242,16 @@ def test_implausible_source_date_is_not_age_evidence(incorporated):
     score=research_score({'incorporated':incorporated,'as_of':'2026-10-31'})
     assert score['factors']['business_history']['points'] is None
     assert score['assessable_points']==0
+
+
+def test_city_options_filters_and_totals(app,client,tmp_path):
+    with app.app_context():
+        db=get_db()
+        load(db,tmp_path,'companies',[
+            company(address='123 Mumbai Road,Pune,Pune,Maharashtra,411001-India',postal_code='411001'),
+            company(CIN2,address='Unstructured address',postal_code='400001')])
+        assert directory(db,{'state':'Maharashtra','city':'pune'})['total']==1
+        assert directory(db,{'state':'Maharashtra','city':'(Not identified)'})['total']==1
+        assert overview(db,{'state':'Maharashtra','city':'Pune'})['summary']['companies']==1
+    options=client.get('/api/options?state=Maharashtra').get_json()
+    assert options['city']==['Pune'] and options['city_unknown']==1

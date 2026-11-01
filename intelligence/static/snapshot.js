@@ -33,6 +33,7 @@
     const exact = ['state','industry','class','status','district','nic'];
     const q = (params.get('q') || '').toLowerCase();
     return data.companies.filter(row => {
+      const city=window.AtlasLocality.derive(row);row.city=city;if(params.get('city')&&(params.get('city').toLowerCase()==='(not identified)'?!!city:(city||'').toLowerCase()!==params.get('city').toLowerCase()))return false;
       if (q && !row.name.toLowerCase().includes(q) && !row.cin.toLowerCase().includes(q)) return false;
       for (const field of exact) if (params.get(field) && row[field] !== params.get(field)) return false;
       if (params.get('listing') && row.effective_listing !== params.get('listing')) return false;
@@ -103,7 +104,7 @@
       await ready;
       const data = activeData, url = new URL(path, location.origin), params = url.searchParams;
       switch (url.pathname) {
-        case '/api/options': return Object.fromEntries(['state','industry','class','status','district','nic'].map(field=>[field,[...new Set(data.companies.map(row=>row[field]).filter(Boolean))].sort()]));
+        case '/api/options': {const result=Object.fromEntries(['state','industry','class','status','district','nic'].map(field=>[field,[...new Set(data.companies.map(row=>row[field]).filter(Boolean))].sort()]));const rows=params.get('state')?data.companies.filter(row=>row.state===params.get('state')):[],cities=rows.map(row=>window.AtlasLocality.derive(row));return {...result,city:[...new Set(cities.filter(Boolean))].sort(),city_unknown:cities.filter(value=>!value).length};}
         case '/api/companies': return directory(data,params);
         case '/api/screen': return directory(data,params,true);
         case '/api/overview': return overview(data,params);
@@ -113,7 +114,7 @@
       if (url.pathname.startsWith('/api/company/')) {
         const row = data.byCin.get(decodeURIComponent(url.pathname.split('/').pop()));
         if (!row) throw new Error('Company not found in published data.');
-        return {company:reviewed(row),score:score(row),field_sources:[],financials:[],historical_names:[],securities:[],directors:[],filings:[],company_history:[],financial_history:[]};
+        return {company:{...reviewed(row),city:window.AtlasLocality.derive(row)},score:score(row),field_sources:[],financials:[],historical_names:[],securities:[],directors:[],filings:[],company_history:[],financial_history:[]};
       }
       throw new Error('This action is unavailable in the read-only dataset deployment.');
     }

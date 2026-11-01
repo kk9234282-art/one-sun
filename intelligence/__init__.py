@@ -144,8 +144,12 @@ def create_app(config=None):
     @app.get('/api/options')
     def options():
         db = get_db()
-        return jsonify({field:[r[0] for r in db.execute(f'SELECT DISTINCT {field} FROM companies WHERE {field} IS NOT NULL ORDER BY {field}')]
-                        for field in ('state','industry','class','status','district','nic')})
+        values={field:[r[0] for r in db.execute(f'SELECT DISTINCT {field} FROM companies WHERE {field} IS NOT NULL ORDER BY {field}')]
+                        for field in ('state','industry','class','status','district','nic')}
+        state=request.args.get('state')
+        cities=[row[0] for row in db.execute('SELECT DISTINCT address_locality(address,state,postal_code) AS city FROM companies WHERE state=? ORDER BY city',(state,))] if state else []
+        values.update(city=[value for value in cities if value],city_unknown=int(None in cities))
+        return jsonify(values)
 
     @app.get('/api/company/<cin>')
     def profile(cin):
