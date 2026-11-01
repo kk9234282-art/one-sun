@@ -26,6 +26,7 @@ if(national){
     if(descriptor.source_data_commit!==national.data_commit||descriptor.companies!==national.stats.summary.active||!/^\/national\/active-summary-[a-f0-9]{12}\.json\.gz$/.test(descriptor.path))throw Error('Active-company summary does not match the national source.');
     const body=await readFile(new URL('../deployment'+descriptor.path,import.meta.url));const {createHash}=await import('node:crypto');if(createHash('sha256').update(body).digest('hex')!==descriptor.sha256)throw Error('Active-company summary checksum mismatch.');
   }
+  if(national.web_revenue_research){const d=national.web_revenue_research;if(d.source_data_commit!==national.data_commit||!/^\/national\/web-revenue-[a-f0-9]{12}\.json\.gz$/.test(d.path))throw Error('Invalid web revenue research descriptor');const body=await readFile(new URL('../deployment'+d.path,import.meta.url));const {createHash}=await import('node:crypto');if(createHash('sha256').update(body).digest('hex')!==d.sha256)throw Error('Web revenue research checksum mismatch');}
   const html=await readFile(new URL('../deployment/index.html',import.meta.url),'utf8');
   if(!html.includes('data-online-catalog="/national/catalog.json"'))throw Error('National HTML entry point is missing.');
   const output=new URL('../public/',import.meta.url);await rm(output,{recursive:true,force:true});await mkdir(new URL('national/',output),{recursive:true});
@@ -37,6 +38,7 @@ if(national){
   try{await cp(new URL('../deployment/national/screener-name-source-report.json',import.meta.url),new URL('national/screener-name-source-report.json',output));}catch(error){if(error.code!=='ENOENT')throw error;}
   if(national.financials?.supplementary_sources?.includes('screener'))await cp(new URL('../deployment/national/screener-source-report.json',import.meta.url),new URL('national/screener-source-report.json',output));
   try{await cp(new URL('../deployment/national/financial-source-report.json',import.meta.url),new URL('national/financial-source-report.json',output));}catch(error){if(error.code!=='ENOENT')throw error;}
+  if(national.web_revenue_research){const d=national.web_revenue_research;for(const name of [d.path.split('/').pop(),'web-revenue-research-report.json','high-capital-revenue-research.csv',...(d.rows?['unverified-web-revenue.csv']:[])])await cp(new URL('../deployment/national/'+name,import.meta.url),new URL('national/'+name,output));}
   await cp(new URL('../intelligence/static/',import.meta.url),new URL('static/',output),{recursive:true});
   console.log(`Built small national website: ${national.record_count} shared companies; compressed data loads on demand from GitHub.`);
   process.exit(0);

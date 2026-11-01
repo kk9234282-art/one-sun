@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "source_data_commit": "bab28087f778efc69f3c47e2645e001e021b4ed3",
+  "target_companies": 31994,
+  "capital_scope": "Active, paid-up capital >= INR 100000000",
+  "verified_statement_companies": 1352,
+  "unverified_web_leads": 150,
+  "cached_pages_examined": 151,
+  "cached_pages_rejected": 0,
+  "duplicate_source_pages": 1,
+  "conflicting_company_matches": 0,
+  "pending_research_companies": 30492,
+  "method": "Unique normalized legal-name candidate from NSE equity list; source page symbol checked. Master CIN NOT verified. Only existing cached public annual tables were read; no general web search performed. Search links are research suggestions, not evidence.",
+  "rows": 150,
+  "path": "/national/web-revenue-5f7402d1e194.json.gz",
+  "sha256": "5f7402d1e1942c3d9c462a36786938ffb48d39c97f659f37a3d2704d14d47418",
+  "bytes": 14847,
+  "queue_csv_path": "/national/high-capital-revenue-research.csv",
+  "leads_csv_path": "/national/unverified-web-revenue.csv"
+}

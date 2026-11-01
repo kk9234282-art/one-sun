@@ -115,3 +115,14 @@ assert.equal((await request('/api/overview?status=Active&capital_band=unknown'))
 assert.equal((await request('/api/companies?status=Active')).total,3);
 assert.ok(!(await request('/api/export.csv?status=Active')).includes('BETA THREE'));
 console.log('Active-only totals, state geography, filter choices, capital facets, directory and exports passed.');
+
+// A synthetic name-only lead must never become a financial statement or score input.
+const lead={cin:raw[3][0],revenue_inr:900000000,period_end:'2026-03-31',source_url:'https://www.screener.in/company/SYNTHETIC/',observed_on:'2026-11-01',verification_status:'unverified',confidence:'low'};
+catalog.web_revenue_research={...asset('research.gz',[lead]),path:'/national/research.gz',schema_version:1,source_data_commit:catalog.data_commit};
+files.set('https://fixture.invalid/national/catalog.json',Buffer.from(JSON.stringify(catalog)));await call('init',{url:'/national/catalog.json'});
+const withLead=(await request('/api/companies?q=GAMMA')).rows[0];
+assert.equal(withLead.web_revenue_inr,900000000);assert.equal(withLead.web_revenue_status,'unverified');assert.equal(withLead.revenue_inr,null);assert.equal(withLead.financial_source,null);
+assert.equal((await request('/api/companies?min_revenue=800000000')).total,0);
+const leadProfile=await request('/api/company/'+raw[3][0]);assert.equal(leadProfile.financials.length,0);assert.equal(leadProfile.web_revenue.confidence,'low');assert.equal(leadProfile.score.factors.profitability.points,null);
+const leadCSV=await request('/api/export.csv?q=GAMMA');assert.ok(leadCSV.includes('web_revenue_inr')&&leadCSV.includes('unverified')&&leadCSV.includes('900000000'));
+console.log('Unverified web research stays separate from financial statements, numeric revenue filters and evidence scores.');

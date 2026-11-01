@@ -67,6 +67,14 @@ try:
     assert variant['financial_source']=='https://www.screener.in/company/AKSHARCHEM/' and variant['financial_identity_source'].startswith('https://nsearchives.nseindia.com/annual_reports/')
    supplemental_csv=page.evaluate("async()=>await AtlasSnapshot.request('/api/export.csv?status=Active&listing=listed&q=L99999GJ1987PLC009768')")
    supplemental_rows=list(csv.DictReader(io.StringIO(supplemental_csv)));assert len(supplemental_rows)==1 and supplemental_rows[0]['financial_source_id']=='screener' and supplemental_rows[0]['financial_retrieved_on']=='2026-11-01'
+  if catalog.get('web_revenue_research'):
+   form.locator('[name=q]').fill('L17100GJ1983PLC028990');form.locator('[name=capital_band]').select_option('10cr_plus');form.get_by_role('button',name='Apply filters',exact=True).click();expect(page.locator('#result-count')).to_have_text('1 records',timeout=5000)
+   research=page.evaluate("async()=>await AtlasSnapshot.request('/api/company/L17100GJ1983PLC028990')")
+   assert research['company']['revenue_inr'] is None and research['financials']==[] and research['web_revenue']['verification_status']=='unverified' and research['web_revenue']['revenue_inr']==4650000000
+   assert research['score']['factors']['profitability']['points'] is None
+   page.locator('#results .company-link').click();expect(page.locator('#profile-content')).to_contain_text('Web-reported revenue · unverified');expect(page.locator('#profile-content')).to_contain_text('Low confidence: name match only');expect(page.get_by_role('link',name='View unverified revenue source ↗',exact=True)).to_have_attribute('href','https://www.screener.in/company/AARNAV/');page.locator('#close-profile').click()
+   with page.expect_download(timeout=10000) as queue_download:page.get_by_role('link',name='Download all high-capital research companies',exact=True).click()
+   queue=list(csv.DictReader(io.StringIO(Path(queue_download.value.path()).read_text(encoding='utf-8-sig'))));assert len(queue)==31994 and all(row['master_status']=='Active' and float(row['paid_up_capital_inr'])>=100000000 for row in queue)
   page.set_viewport_size({'width':390,'height':844});assert page.evaluate('document.documentElement.scrollWidth<=innerWidth');assert not errors,errors
   browser.close()
  print('Listed browser checks passed:',json.dumps(timings),f'{expected} active exact matches, cached compact data, imported annual figures, banking income labels, pagination, totals, CSV, geographic/class combinations and sorting.')
