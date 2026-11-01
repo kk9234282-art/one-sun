@@ -2,7 +2,7 @@
 
 ## Current data status
 
-The current financial overlay contains **2,638 annual statements for 1,400 Active listed company CINs**: the original 2,236 NSE statements for 1,198 companies, plus 402 verified Screener statements for 202 previously uncovered companies. There are 1,394 companies with standalone data and 1,026 with consolidated data. Of the 7,441 Active listed records in the master, **6,041 remain uncovered**. This is partial imported coverage, not a claim to cover every currently traded issuer. Latest report/statement dissemination is 2026-10-30; Screener table retrieval is separately recorded as 2026-11-01.
+The current financial overlay contains **2,744 annual statements for 1,453 Active listed company CINs**: the original 2,236 NSE statements for 1,198 companies, plus 508 verified Screener statements for 255 previously uncovered companies. There are 1,447 companies with standalone data and 1,026 with consolidated data. Of the 7,441 Active listed records in the master, **5,988 remain uncovered**. This is partial imported coverage, not a claim to cover every currently traded issuer. Latest report/statement dissemination is 2026-10-30; Screener table retrieval is separately recorded as 2026-11-01.
 
 On 2026-11-01, publishing the environment configuration activated the saved NSE/BSE domains. NSE's public results page, advertised CSV downloads and linked archive XBRL files became accessible. BSE's public results page returned its own HTTP 403; no bypass was attempted. No paid data service or API subscription was added.
 
@@ -10,7 +10,7 @@ NSE's current reports are under the public **Integrated Filing – Financials** 
 
 2,376 candidate filings were processed; 2,236 parsed into supported annual statements. The coverage report lists excluded nonannual/unsupported contexts, mismatched identifiers and unavailable source files. Four workers, caches, verified TLS and stop-on-401/403/429 rules were used. Only the site's advertised exports and public archive links were read, not authenticated or challenge-protected interfaces. Raw BRSR/filing XML remains in the ignored local build cache; no employee/contact data from those reports is published.
 
-The original NSE coverage summary is in `deployment/national/financial-source-report.json`; supplemental coverage and exclusions are in `deployment/national/screener-source-report.json`. Both are copied into the site build. The combined data-only financial branch is `data/listed-financials-v4`, pinned by immutable URL and SHA-256 in the national catalog. Synthetic fixtures remain confined to tests.
+The original NSE coverage summary is in `deployment/national/financial-source-report.json`; supplemental coverage and exclusions are in `deployment/national/screener-source-report.json`. Both are copied into the site build. The combined data-only financial branch is `data/listed-financials-v5`, pinned by immutable URL and SHA-256 in the national catalog. Synthetic fixtures remain confined to tests.
 
 Listed-company figures show **Not imported** where no statement exists for the requested year/basis, and **Not reported** where an imported statement omits a metric. Public availability of other filings does not mean they have been matched/imported here. Banking total income is labelled separately from revenue from operations. The company master and its listing labels are otherwise unchanged.
 
@@ -31,7 +31,7 @@ From the repository root:
 Review `instance/build/listed-financials/validation-report.json`. Any rejected rows prevent dataset preparation. No records are sent to a network service. With a clean report and real data:
 
 ```bash
-.venv/bin/python scripts/prepare_financial_branch.py --branch data/listed-financials-v4
+.venv/bin/python scripts/prepare_financial_branch.py --branch data/listed-financials-v5
 ```
 
 This creates a reviewable, immutable data-only Git branch and pins its URL/checksum in `deployment/national/catalog.json`; it does not push or deploy automatically. Publish the prepared data branch and main catalog through the repository's normal deployment process. Use a new versioned branch for subsequent changes. The publisher checks the validation report, source snapshot and content hash. The build validates immutable data URLs and source-snapshot compatibility. Company data and account databases remain separate.
@@ -66,3 +66,7 @@ Only explicitly labelled standalone annual profit/loss tables in INR crore are a
 `scripts/merge_screener_financials.py` validates completed fetch results and combines additions with the existing overlay. It refuses to replace any already covered CIN. Build/publish the validated financial pack and then regenerate the Active listed CSV and coverage queue. Raw PDFs are temporary; source checksums and extracted identity evidence remain local. The dashboard profile and CSV retain source, reporting basis, precision and date provenance.
 
 The November 1 Screener run attempted 417 candidates before an HTTP 429 rate-limit response stopped downloads; 724 candidates were deferred. Of the attempted candidates, 202 passed identity, basis and period checks. Remaining candidates had unavailable/unreadable reports, absent CIN evidence, unsupported tables or other recorded exceptions. No rate-limit bypass or automatic retry followed the denial. Future runs use slower pacing.
+
+Name-variant discovery is available with `scripts/fetch_screener_financials.py --name-variants-only`. It expands Ltd/Limited and ignores spacing/punctuation to find unique candidates across the Active listed master. It never treats a name as identity proof: every addition still requires the exact CIN in the linked NSE annual report and the NSE symbol on Screener. The separate checkpoint preserves the earlier exact-name audit. Merge with `scripts/merge_screener_financials.py --report name-variants-fetch-report.json`.
+
+The name-variant batch checked all 120 additional candidates and verified 53 new CINs (106 annual statements). It completed without a rate/access stop. The other 67 candidates remain excluded for missing identity/report evidence, unclear reporting basis or unavailable source files. Its separate audit is `/national/screener-name-source-report.json`.

@@ -14,6 +14,7 @@ import requests
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from intelligence.screener_financials import parse_annual,Tables
 from intelligence.financial_data import normalize
+from intelligence.company_names import discover_variants
 ROOT=Path(__file__).resolve().parents[1];CACHE=ROOT/'instance/build/screener-financials';CACHE.mkdir(parents=True,exist_ok=True)
 STOP=threading.Event();GATE=threading.Lock();LAST={}
 
@@ -47,7 +48,7 @@ def fetch(url,*,pdf=False):
     path.write_text(json.dumps(result));return result
 
 def main():
-    ap=argparse.ArgumentParser();ap.add_argument('--limit',type=int);args=ap.parse_args();catalog=json.loads((ROOT/'deployment/national/catalog.json').read_text());fields=catalog['full_fields']
+    ap=argparse.ArgumentParser();ap.add_argument('--limit',type=int);ap.add_argument('--name-variants-only',action='store_true');args=ap.parse_args();catalog=json.loads((ROOT/'deployment/national/catalog.json').read_text());fields=catalog['full_fields']
     descriptor=catalog['listed_index'];body=(ROOT/'instance/build/listed-index'/descriptor['path'].rsplit('/',1)[-1]).read_bytes();assert hashlib.sha256(body).hexdigest()==descriptor['sha256']
     companies=[dict(zip(fields,row)) for row in json.loads(gzip.decompress(body))];active={row['cin']:row for row in companies if row['status']=='Active' and row['effective_listing']=='listed'}
     descriptor=catalog['financials'];folder=ROOT/'instance/build/listed-financials';folder.mkdir(parents=True,exist_ok=True);path=folder/descriptor['path'].rsplit('/',1)[-1]
@@ -60,10 +61,13 @@ def main():
     for row in exchange:
         candidates=names.get(row['NAME OF COMPANY'].upper(),[])
         if len(candidates)==1 and candidates[0] not in covered:jobs.append((row['SYMBOL'],candidates[0]))
+    variants=discover_variants(companies,exchange,covered) if args.name_variants_only else []
+    if args.name_variants_only:jobs=[(row['symbol'],row['cin']) for row in variants]
     if args.limit:jobs=jobs[:args.limit]
     robots=RobotFileParser();robots.parse(fetch('https://www.screener.in/robots.txt').decode().splitlines())
     saved={}
-    checkpoint=CACHE/'fetch-report.json'
+    report_name='name-variants-fetch-report.json' if args.name_variants_only else 'fetch-report.json'
+    checkpoint=CACHE/report_name
     if checkpoint.exists():
         prior=json.loads(checkpoint.read_text())
         if prior['source_data_commit']==catalog['data_commit']:saved={(r['symbol'],r['cin']):r for r in prior['results'] if not r.get('error','').startswith(('Stopped after','Access/rate denial'))}
@@ -95,13 +99,13 @@ def main():
             result.update(records=rows,identity=identity,page_sha256=hashlib.sha256(html.encode()).hexdigest())
         except Exception as error:result['error']=str(error)[:250]
         return result
-    results=[];print('Uncovered exact-name NSE candidates requiring CIN verification:',len(jobs),flush=True)
+    results=[];print('Uncovered name-variant candidates' if args.name_variants_only else 'Uncovered exact-name NSE candidates',len(jobs),flush=True)
     with ThreadPoolExecutor(max_workers=6) as pool:
         futures=[pool.submit(process,job) for job in jobs]
         for n,future in enumerate(as_completed(futures),1):
             results.append(future.result())
             if n%10==0 or n==len(jobs):
-                (CACHE/'fetch-report.json').write_text(json.dumps({'source_data_commit':catalog['data_commit'],'candidates':len(jobs),'processed':n,'access_stop':STOP.is_set(),'results':results},separators=(',',':')))
+                checkpoint.write_text(json.dumps({'discovery':'normalized legal-name variants' if args.name_variants_only else 'exact legal name','name_candidates':variants,'source_data_commit':catalog['data_commit'],'candidates':len(jobs),'processed':n,'access_stop':STOP.is_set(),'results':results},separators=(',',':')))
                 print('Processed',n,'/',len(jobs),'new companies',sum('records' in r for r in results),'access_stop',STOP.is_set(),flush=True)
     rows=[r for item in results for r in item.get('records',[])];(CACHE/'new-statements.json').write_text(json.dumps(rows,separators=(',',':')))
     print('New companies',len({r['cin'] for r in rows}),'annual rows',len(rows),flush=True)

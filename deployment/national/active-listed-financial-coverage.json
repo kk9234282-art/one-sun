@@ -5,11 +5,11 @@
     "effective_listing": "listed"
   },
   "active_listed_companies": 7441,
-  "covered_companies": 1400,
-  "remaining_companies": 6041,
-  "latest_statement_rows": 2420,
-  "standalone_companies": 1394,
+  "covered_companies": 1453,
+  "remaining_companies": 5988,
+  "latest_statement_rows": 2473,
+  "standalone_companies": 1447,
   "consolidated_companies": 1026,
-  "revenue_or_income_companies": 1400,
+  "revenue_or_income_companies": 1453,
   "note": "Source master status is not evidence of current exchange trading status. Each reporting basis is explicit; financial years may differ. Missing values are blank, never zero-filled."
 }
