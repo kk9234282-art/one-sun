@@ -276,3 +276,14 @@ def test_geographic_list_and_breakdown(app,client,tmp_path):
         assert directory(db,{'state':'Maharashtra','city':'Pune','postal_city':'Baramati'})['total']==1
     options=client.get('/api/options?state=Maharashtra&city=Pune').get_json()
     assert options['postal_city']==['Baramati','Pune City']
+
+
+def test_paid_up_capital_ranges_have_no_overlap(app,client,tmp_path):
+    with app.app_context():
+        db=get_db();values=[0,9999999,10000000,99999999,100000000,None]
+        load(db,tmp_path,'companies',[company(f'U12345MH2010PTC{i:06d}',paid_up_capital=value,authorised_capital=1000000000) for i,value in enumerate(values,1)])
+        for band,count in [('under_1cr',2),('1_to_10cr',2),('10cr_plus',1),('unknown',1)]:
+            assert directory(db,{'capital_band':band})['total']==count
+            assert overview(db,{'capital_band':band})['summary']['companies']==count
+        assert directory(db,{'capital_band':'under_1cr','min_capital':'10000000'})['total']==0
+    assert client.get('/api/companies?capital_band=invalid').status_code==400

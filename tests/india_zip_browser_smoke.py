@@ -61,6 +61,12 @@ def main():
                 assert len(counts['groups']['state'])==5
                 form=page.locator('#filters');form.locator('[name=state]').select_option('Karnataka');form.get_by_role('button',name='Apply filters',exact=True).click()
                 expect(page.locator('#result-count')).to_have_text(('45,000' if args.large else '1,000')+' records',timeout=30000)
+                form.locator('[name=capital_band]').select_option('unknown');form.get_by_role('button',name='Apply filters',exact=True).click()
+                expect(page.locator('#result-count')).to_have_text('1 records',timeout=30000)
+                form.locator('[name=capital_band]').select_option('under_1cr');form.get_by_role('button',name='Apply filters',exact=True).click()
+                expected_under='44,999' if args.large else '999'
+                expect(page.locator('#result-count')).to_have_text(expected_under+' records',timeout=30000)
+                form.locator('[name=capital_band]').select_option('')
                 options=page.evaluate("async()=>await AtlasSnapshot.request('/api/options?state=Karnataka')")
                 assert options['city']==['Bengaluru Urban'] and options['city_unknown']==n-1
                 combined=page.evaluate("async()=>await AtlasSnapshot.request('/api/companies?state=Karnataka&postal_code=560001&city=Bengaluru%20Urban')")

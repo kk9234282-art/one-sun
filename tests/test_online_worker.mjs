@@ -7,10 +7,10 @@ import vm from 'node:vm';
 const fields=['cin','name','class','registered_class','category','status','incorporated','state','industry','authorised_capital','paid_up_capital','effective_listing'];
 const dictionaries={class:[null,'Private','Public'],registered_class:[null,'Private','Public'],category:[null,'Shares'],status:[null,'Active','Strike Off'],state:[null,'Maharashtra','Gujarat'],industry:[null,'Testing'],effective_listing:[null,'listed','unlisted']};
 const raw=[
- ['U12345MH2010PTC000001','ALPHA ONE',1,1,1,1,'2010-01-01',1,1,100,10,2],
- ['U12345GJ2010PLC000002','ALPHA TWO',2,2,1,1,'2010-01-01',2,1,100,90,1],
+ ['U12345MH2010PTC000001','ALPHA ONE',1,1,1,1,'2010-01-01',1,1,1000000000,0,2],
+ ['U12345GJ2010PLC000002','ALPHA TWO',2,2,1,1,'2010-01-01',2,1,1000000000,10000000,1],
  ['U12345MH2011PTC000003','BETA THREE',1,1,1,2,'2011-01-01',1,1,100,null,2],
- ['U12345GJ2012PLC000004','GAMMA FOUR',2,2,1,1,'2012-01-01',2,1,100,40,2]
+ ['U12345GJ2012PLC000004','GAMMA FOUR',2,2,1,1,'2012-01-01',2,1,1000000000,100000000,2]
 ];
 const files=new Map();
 function asset(path,rows){const bytes=gzipSync(JSON.stringify(rows));files.set('https://fixture.invalid/national/'+path,bytes);return {path,rows:rows.length,sha256:createHash('sha256').update(bytes).digest('hex')};}
@@ -49,7 +49,7 @@ let result=await request('/api/companies?per_page=1&page=3');assert.equal(result
 result=await request('/api/companies?state=Gujarat');assert.equal(result.total,2);assert.equal(result.rows[0].state,'Gujarat');
 result=await request('/api/companies?q=ALPHA');assert.equal(result.total,2);
 assert.equal((await request('/api/overview?q=ALPHA')).summary.companies,2);
-result=await request('/api/companies?sort=paid_up_capital&direction=desc&per_page=3');assert.deepEqual([...result.rows.map(row=>row.paid_up_capital)],[90,40,10]);
+result=await request('/api/companies?sort=paid_up_capital&direction=desc&per_page=3');assert.deepEqual([...result.rows.map(row=>row.paid_up_capital)],[100000000,10000000,0]);
 assert.equal((await request('/api/companies?min_revenue=0')).total,0);
 assert.equal((await request('/api/screen')).total,3);
 const profile=await request('/api/company/'+raw[0][0]);assert.equal(profile.company.address,'Synthetic address');assert.equal(profile.company.as_of,'2026-10-31');assert.equal(profile.company.revenue_inr,null);
@@ -70,4 +70,7 @@ const initial=(await request('/api/companies?per_page=1')).rows[0];assert.equal(
 const geo=await request('/api/overview?state=Maharashtra&city=Pune');assert.equal(geo.groups.postal_city[0].label,'Pune City');assert.equal(geo.groups.postal_city.reduce((n,row)=>n+row.count,0),geo.summary.companies);
 assert.equal((await request('/api/companies?state=Maharashtra&city=Pune&postal_city=Pune%20City')).total,1);
 assert.equal((await request('/api/companies?state=Maharashtra&city=Pune&postal_city=Baramati')).total,0);
+for(const band of ['under_1cr','1_to_10cr','10cr_plus','unknown']){assert.equal((await request('/api/companies?capital_band='+band)).total,1);assert.equal((await request('/api/overview?capital_band='+band)).summary.companies,1);}
+const middle=await request('/api/export.csv?capital_band=1_to_10cr');assert.ok(middle.includes('ALPHA TWO')&&!middle.includes('ALPHA ONE')&&!middle.includes('GAMMA FOUR'));
+await assert.rejects(()=>request('/api/companies?capital_band=invalid'),/Invalid paid-up capital range/);
 console.log('National online worker tests passed: paginated/state/search queries, numeric sort, profiles, missing financials, screening and filtered CSV.');

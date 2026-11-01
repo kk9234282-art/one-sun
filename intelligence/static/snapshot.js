@@ -1,6 +1,17 @@
 /* Public read-only transport for the same dashboard UI. No server credentials. */
 'use strict';
 (() => {
+  function capitalMatches(value,band){
+    if(!band)return true;
+    switch(band){
+      case 'under_1cr':return value!=null&&value<10000000;
+      case '1_to_10cr':return value!=null&&value>=10000000&&value<100000000;
+      case '10cr_plus':return value!=null&&value>=100000000;
+      case 'unknown':return value==null;
+      default:throw Error('Invalid paid-up capital range.');
+    }
+  }
+
   let activeData,localOverride=false;
   const ready = window.AtlasOnline?.enabled?Promise.resolve(activeData={manifest:{record_count:0},fields:['cin','name','class','registered_class','category','subcategory','status','incorporated','address','state','district','industry','nic','roc','postal_code','authorised_capital','paid_up_capital','effective_listing','source_id','as_of'],companies:[],byCin:new Map(),sources:[],datasets:[]}):fetch('/data/companies.json').then(async response => {
     if (!response.ok) throw new Error('Published company data could not be loaded.');
@@ -33,6 +44,7 @@
     const exact = ['state','industry','class','status','nic','roc','postal_code'];
     const q = (params.get('q') || '').toLowerCase();
     return data.companies.filter(row => {
+      if(!capitalMatches(row.paid_up_capital,params.get('capital_band')))return false;
       Object.assign(row,window.AtlasLocality.enrich(row));const city=row.city;for(const field of ['district','postal_city'])if(params.get(field)){const expected=params.get(field).toLowerCase();if(expected==='(not identified)'?!!row[field]:(row[field]||'').toLowerCase()!==expected)return false;}if(params.get('city')&&(params.get('city').toLowerCase()==='(not identified)'?!!city:(city||'').toLowerCase()!==params.get('city').toLowerCase()))return false;
       if (q && !row.name.toLowerCase().includes(q) && !row.cin.toLowerCase().includes(q)) return false;
       for (const field of exact) if (params.get(field) && row[field] !== params.get(field)) return false;

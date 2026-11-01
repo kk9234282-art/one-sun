@@ -56,6 +56,17 @@ def query(args):
             if not math.isfinite(params[key]):
                 raise ValueError('Filter must be finite')
             conditions.append(f'{expression}>=:{key}')
+    band=args.get('capital_band','')
+    if band:
+        capital_conditions={
+            'under_1cr':'paid_up_capital IS NOT NULL AND paid_up_capital<10000000',
+            '1_to_10cr':'paid_up_capital>=10000000 AND paid_up_capital<100000000',
+            '10cr_plus':'paid_up_capital>=100000000',
+            'unknown':'paid_up_capital IS NULL',
+        }
+        if band not in capital_conditions:
+            raise ValueError('Invalid paid-up capital range')
+        conditions.append('('+capital_conditions[band]+')')
     if args.get('positive_profit') == '1':
         conditions.append('profit_inr>0')
     if args.get('min_age'):

@@ -2,6 +2,17 @@
 'use strict';
 importScripts('vendor/fflate.js','locality.js');
 (() => {
+  function capitalMatches(value,band){
+    if(!band)return true;
+    switch(band){
+      case 'under_1cr':return value!=null&&value<10000000;
+      case '1_to_10cr':return value!=null&&value>=10000000&&value<100000000;
+      case '10cr_plus':return value!=null&&value>=100000000;
+      case 'unknown':return value==null;
+      default:throw Error('Invalid paid-up capital range.');
+    }
+  }
+
   let catalog,base,viewGeneration=0;
   const pendingChunks=new Map(),cache=new Map(),queryCache=new Map(),locationStates=new Map(),alignmentChecks=new Set();
   const inactive=new Set(['Strike Off','Struck Off','Dormant','Dissolved','Under Liquidation','Inactive','Amalgamated','Converted To Llp','Dissolved (Liquidated)','Dormant Under Section 455','Dissolved Under Section 59(8)','Dissolved Under Section 54']);
@@ -27,7 +38,7 @@ importScripts('vendor/fflate.js','locality.js');
   function relevant(p){return [...p].filter(([key,value])=>value&&!['page','per_page','sort','direction','reporting_type','fy'].includes(key));}
   function knownStats(p){const filters=relevant(p);if(!filters.length)return catalog.stats;if(filters.length===1&&filters[0][0]==='state')return catalog.states[filters[0][1]]?.stats||new Stats().output();if(filters.length===1&&filters[0][0]==='industry')return catalog.industries[filters[0][1]]||new Stats().output();if(filters.length===1){const field=filters[0][0]==='listing'?'effective_listing':filters[0][0];if(catalog.facets?.[field])return catalog.facets[field][filters[0][1]]||new Stats().output();}return null;}
   function noFinancialResults(p){return ['min_revenue','min_profit','min_revenue_growth','min_profit_growth'].some(key=>p.get(key)!==null&&p.get(key)!=='')||p.get('positive_profit')==='1';}
-  function matches(row,p){for(const field of ['district','postal_city'])if(p.get(field)){const expected=p.get(field).trim().toLowerCase();if(expected==='(not identified)'?!!row[field]:(row[field]||'').toLowerCase()!==expected)return false;}if(p.get('city')){const expected=p.get('city').trim().toLowerCase();if(expected==='(not identified)'?row.city!==null:!row.city||row.city.toLowerCase()!==expected)return false;}const q=(p.get('q')||'').toLowerCase();if(q&&!row.name.toLowerCase().includes(q)&&!row.cin.toLowerCase().includes(q))return false;for(const field of ['state','industry','class','status','nic','roc','postal_code'])if(p.get(field)&&p.get(field)!==row[field])return false;if(p.get('listing')&&p.get('listing')!==row.effective_listing)return false;for(const field of ['incorporated','as_of']){if(p.get(field+'_from')&&(!row[field]||row[field]<p.get(field+'_from')))return false;if(p.get(field+'_to')&&(!row[field]||row[field]>p.get(field+'_to')))return false;}if(p.get('min_capital')!==null&&p.get('min_capital')!==''&&(row.paid_up_capital==null||row.paid_up_capital<Number(p.get('min_capital'))))return false;if(p.get('min_age')&&(!row.incorporated||(Date.now()-Date.parse(row.incorporated+'T00:00:00Z'))/(365.2425*86400000)<Number(p.get('min_age'))))return false;return !noFinancialResults(p);}
+  function matches(row,p){if(!capitalMatches(row.paid_up_capital,p.get('capital_band')))return false;for(const field of ['district','postal_city'])if(p.get(field)){const expected=p.get(field).trim().toLowerCase();if(expected==='(not identified)'?!!row[field]:(row[field]||'').toLowerCase()!==expected)return false;}if(p.get('city')){const expected=p.get('city').trim().toLowerCase();if(expected==='(not identified)'?row.city!==null:!row.city||row.city.toLowerCase()!==expected)return false;}const q=(p.get('q')||'').toLowerCase();if(q&&!row.name.toLowerCase().includes(q)&&!row.cin.toLowerCase().includes(q))return false;for(const field of ['state','industry','class','status','nic','roc','postal_code'])if(p.get(field)&&p.get(field)!==row[field])return false;if(p.get('listing')&&p.get('listing')!==row.effective_listing)return false;for(const field of ['incorporated','as_of']){if(p.get(field+'_from')&&(!row[field]||row[field]<p.get(field+'_from')))return false;if(p.get(field+'_to')&&(!row[field]||row[field]>p.get(field+'_to')))return false;}if(p.get('min_capital')!==null&&p.get('min_capital')!==''&&(row.paid_up_capital==null||row.paid_up_capital<Number(p.get('min_capital'))))return false;if(p.get('min_age')&&(!row.incorporated||(Date.now()-Date.parse(row.incorporated+'T00:00:00Z'))/(365.2425*86400000)<Number(p.get('min_age'))))return false;return !noFinancialResults(p);}
   class Stats{
     constructor(){this.summary={companies:0,active:0,inactive:0,other_status:0,private:0,public:0,listed:0,unlisted:0,unknown_listing:0,financial_coverage:0,oldest:null,newest:null,llps:0,msmes:0,securities:0,unlinked_securities:0};this.groups=Object.fromEntries(['state','industry','class','status','effective_listing','district','postal_city','trends','capital'].map(field=>[field,new Map()]));}
     increment(field,label){const values=this.groups[field];values.set(label,(values.get(label)||0)+1);}
@@ -48,6 +59,7 @@ importScripts('vendor/fflate.js','locality.js');
       if(noFinancialResults(p))return {rows:[],total:0,page,per_page:perPage,stats:new Stats().output()};
       const location=await locationSelection(p);if(location&&location.id!==null&&location.id<0)return {rows:[],total:0,page,per_page:perPage,stats:new Stats().output()};
       const known=knownStats(p),stats=known?null:new Stats(),state=p.get('state'),list=state?(catalog.states[state]?.chunks||[]):catalog.global_chunks;
+      if(known&&known.summary.companies===0)return {rows:[],total:0,page,per_page:perPage,stats:known};
       const sequential=!p.get('sort')||p.get('sort')==='name',reverse=p.get('direction')==='desc';
       if(!sequential&&offset+perPage>50000)throw Error('For deep pagination use company-name sorting or narrow the filters. Other sorts are limited to the first 50,000 matching rows.');
       const heap=sequential?null:new TopRows(offset+perPage,p),visible=[];let count=0,processed=0;
