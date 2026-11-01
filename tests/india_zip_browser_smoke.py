@@ -66,7 +66,8 @@ def main():
                 form.locator('[name=q]').fill('U12345KA2010PTC000000');form.get_by_role('button',name='Apply filters',exact=True).click()
                 expect(page.locator('#result-count')).to_have_text('1 records',timeout=120000)
                 page.get_by_role('button',name='Synthetic ZIP Karnataka company 000000',exact=True).click()
-                expect(page.locator('#profile-content')).to_contain_text('states/Karnataka.csv')
+                profile=page.evaluate("async()=>await AtlasSnapshot.request('/api/company/U12345KA2010PTC000000')")
+                assert profile['company']['source_file']=='states/Karnataka.csv'  # Retained in data, hidden in the dashboard.
                 page.locator('#close-profile').click()
                 with page.expect_download() as download:page.locator('#export-csv').click()
                 rows=list(csv.DictReader(io.StringIO(Path(download.value.path()).read_text(encoding='utf-8-sig'))));assert len(rows)==1
