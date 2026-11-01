@@ -2,7 +2,7 @@
 'use strict';
 (() => {
   const validDate=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value+'T00:00:00Z'))&&new Date(value+'T00:00:00Z').toISOString().slice(0,10)===value;
-  const fields=['revenue_metric','financial_year','reporting_type','revenue_inr','profit_inr','assets_inr','liabilities_inr','revenue_growth','profit_growth','financial_source','financial_as_of','financial_period_end','financial_source_id'];
+  const fields=['revenue_metric','financial_year','reporting_type','revenue_inr','profit_inr','assets_inr','liabilities_inr','revenue_growth','profit_growth','financial_source','financial_as_of','financial_period_end','financial_source_id','financial_identity_source','financial_retrieved_on','financial_source_date_basis','financial_precision'];
   const multipliers={'INR':1,'INR lakh':100000,'INR crore':10000000};
   class Statements{
     constructor(records=[]){this.byCin=new Map();const keys=new Set();for(const row of records){
@@ -18,7 +18,7 @@
       for(const field of fields)row[field]=null;
       const basis=params.get('reporting_type')||'standalone',fy=params.get('fy'),rows=this.history(row.cin).filter(record=>record.reporting_type===basis),statement=rows.find(record=>!fy||String(record.financial_year)===fy);
       if(!statement)return row;
-      const multiplier=multipliers[statement.unit];row.revenue_metric=statement.revenue_metric||'reported_revenue';row.financial_year=statement.financial_year;row.reporting_type=basis;row.financial_source=statement.source_url;row.financial_source_id=statement.source_id;row.financial_as_of=statement.as_of;row.financial_period_end=statement.period_end;
+      const multiplier=multipliers[statement.unit];row.revenue_metric=statement.revenue_metric||'reported_revenue';row.financial_year=statement.financial_year;row.reporting_type=basis;row.financial_source=statement.source_url;row.financial_source_id=statement.source_id;row.financial_as_of=statement.as_of;row.financial_period_end=statement.period_end;row.financial_identity_source=statement.identity_source_url||null;row.financial_retrieved_on=statement.source_retrieved_on||null;row.financial_source_date_basis=statement.source_date_basis||null;row.financial_precision=statement.source_precision||null;
       for(const [source,target]of [['revenue','revenue_inr'],['net_profit','profit_inr'],['assets','assets_inr'],['liabilities','liabilities_inr']])row[target]=statement[source]==null?null:statement[source]*multiplier;
       const previous=rows.find(record=>record.financial_year===statement.financial_year-1&&(record.period_end.slice(5)===statement.period_end.slice(5)||(['02-28','02-29'].includes(record.period_end.slice(5))&&['02-28','02-29'].includes(statement.period_end.slice(5)))));
       if(previous){for(const [source,target]of [['revenue','revenue_growth'],['net_profit','profit_growth']]){if(source==='revenue'&&(previous.revenue_metric||'reported_revenue')!==row.revenue_metric)continue;const old=previous[source]==null?null:previous[source]*multipliers[previous.unit],now=statement[source]==null?null:statement[source]*multiplier;if(old!=null&&old>0&&now!=null){const growth=(now/old-1)*100;if(Number.isFinite(growth))row[target]=growth;}}}

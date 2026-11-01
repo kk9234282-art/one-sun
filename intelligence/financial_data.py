@@ -21,11 +21,20 @@ def normalize(raw,listed_cins,today=None):
     basis=row['reporting_type'].lower();unit=row['unit']
     if basis not in ('standalone','consolidated') or unit not in UNITS:raise ValueError('Specify standalone/consolidated and INR/INR lakh/INR crore')
     url=urlsplit(row['source_url']);source=row['source_id'].lower()
-    if url.scheme!='https' or not url.hostname or url.username or url.password or source not in ('nse','bse','company_report','user_upload'):raise ValueError('Require an HTTPS statement reference and declared source')
+    if url.scheme!='https' or not url.hostname or url.username or url.password or source not in ('nse','bse','screener','company_report','user_upload'):raise ValueError('Require an HTTPS statement reference and declared source')
     if source in ('nse','bse') and not (url.hostname==source+'india.com' or url.hostname.endswith('.'+source+'india.com')):raise ValueError('Exchange source must reference its official domain')
+    if source=='screener' and url.hostname!='www.screener.in':raise ValueError('Screener source must reference its official domain')
+    if source=='screener':
+        identity=urlsplit(row.get('identity_source_url',''))
+        if identity.scheme!='https' or identity.hostname!='nsearchives.nseindia.com' or not identity.path.startswith('/annual_reports/') or identity.username or identity.password:raise ValueError('Screener import requires an NSE annual-report identity reference')
+        retrieved=date.fromisoformat(row.get('source_retrieved_on',''))
+        if not published<=retrieved<=today:raise ValueError('Screener retrieval date must follow the annual report and not be future')
+        if row.get('source_date_basis')!='NSE annual-report dissemination; financial table retrieved separately':raise ValueError('Screener source-date basis must be explicit')
     metric=row.get('revenue_metric') or 'reported_revenue'
     if metric not in ('reported_revenue','revenue_from_operations','total_income_banking'):raise ValueError('Unknown revenue definition')
     result={'revenue_metric':metric,'cin':cin,'financial_year':year,'reporting_type':basis,'unit':unit,'period_end':end.isoformat(),'period_months':12,'source_id':source,'source_url':row['source_url'],'as_of':published.isoformat()}
+    for key in ('identity_source_url','source_retrieved_on','source_date_basis','source_precision'):
+        if row.get(key):result[key]=row[key]
     for field in FIELDS:
         text=row.get(field,'')
         if text.lower() in ('','na','n/a','null','unknown','-'):result[field]=None;continue

@@ -54,6 +54,14 @@ try:
    bank=page.evaluate("async()=>await AtlasSnapshot.request('/api/company/L65920MH1994PLC080618')")['company'];assert bank['revenue_metric']=='total_income_banking' and bank['revenue_inr']>0 and bank['profit_inr']>0
    revenue_index=page.locator('#results th').all_text_contents().index('Revenue / income');expect(page.locator('#results tbody tr').first.locator('td').nth(revenue_index)).to_have_attribute('title','Reported total income (banking)')
    assert seen.count('/financials/'+catalog['financials']['path'].rsplit('/',1)[1])==1
+  if 'screener' in catalog.get('financials',{}).get('supplementary_sources',[]):
+   form.locator('[name=q]').fill('L99999GJ1987PLC009768');form.get_by_role('button',name='Apply filters',exact=True).click();expect(page.locator('#result-count')).to_have_text('1 records',timeout=5000)
+   supplemental=page.evaluate("async()=>await AtlasSnapshot.request('/api/company/L99999GJ1987PLC009768')")['company']
+   assert supplemental['financial_source_id']=='screener' and supplemental['financial_year']==2026 and supplemental['revenue_inr']==8240000000 and supplemental['profit_inr']==600000000
+   assert supplemental['financial_retrieved_on']=='2026-11-01' and supplemental['financial_as_of']=='2026-07-09'
+   page.locator('#results .company-link').click();expect(page.locator('#profile-content')).to_contain_text('amounts may be rounded');expect(page.get_by_role('link',name='View CIN verification report ↗',exact=True)).to_have_attribute('href',supplemental['financial_identity_source']);page.locator('#close-profile').click()
+   supplemental_csv=page.evaluate("async()=>await AtlasSnapshot.request('/api/export.csv?status=Active&listing=listed&q=L99999GJ1987PLC009768')")
+   supplemental_rows=list(csv.DictReader(io.StringIO(supplemental_csv)));assert len(supplemental_rows)==1 and supplemental_rows[0]['financial_source_id']=='screener' and supplemental_rows[0]['financial_retrieved_on']=='2026-11-01'
   page.set_viewport_size({'width':390,'height':844});assert page.evaluate('document.documentElement.scrollWidth<=innerWidth');assert not errors,errors
   browser.close()
  print('Listed browser checks passed:',json.dumps(timings),f'{expected} active exact matches, cached compact data, imported annual figures, banking income labels, pagination, totals, CSV, geographic/class combinations and sorting.')

@@ -14,6 +14,6 @@ def main():
     if report['rejected_rows']:raise SystemExit(f"{report['rejected_rows']} rows rejected. Review validation-report.json; no financial dataset was prepared.")
     if not rows:raise SystemExit('No valid real statements supplied; no dataset prepared.')
     body=gzip.compress(json.dumps(rows,separators=(',',':'),allow_nan=False).encode(),compresslevel=9,mtime=0);sha=hashlib.sha256(body).hexdigest();name='financials-'+sha[:12]+'.json.gz';(output/name).write_bytes(body)
-    manifest={'schema_version':1,'path':name,'rows':len(rows),'sha256':sha,'bytes':len(body),'source_data_commit':catalog['data_commit'],'covered_companies':report['covered_companies'],'input_sha256':report['input_sha256'],'latest_publication_date':max(row['as_of'] for row in rows)};(output/'manifest.json').write_text(json.dumps(manifest,separators=(',',':')))
+    manifest={'schema_version':1,'supplementary_sources':sorted({row['source_id'] for row in rows}-{'nse','bse'}),'path':name,'rows':len(rows),'sha256':sha,'bytes':len(body),'source_data_commit':catalog['data_commit'],'covered_companies':report['covered_companies'],'input_sha256':report['input_sha256'],'latest_publication_date':max(row['as_of'] for row in rows)};(output/'manifest.json').write_text(json.dumps(manifest,separators=(',',':')))
     print(json.dumps(manifest))
 if __name__=='__main__':main()

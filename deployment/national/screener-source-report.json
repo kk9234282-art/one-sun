@@ -1,0 +1,24 @@
+{
+  "source": "screener",
+  "scope": "Active listed companies without imported statements",
+  "candidates": 1141,
+  "completed_jobs": 1141,
+  "attempted_companies": 417,
+  "deferred_after_rate_or_access_stop": 724,
+  "new_companies": 202,
+  "new_annual_statements": 402,
+  "access_stop": true,
+  "final_revalidation_exceptions": [],
+  "exceptions": {
+    "No public dated NSE annual PDF": 78,
+    "Master CIN absent from first 20 report pages": 64,
+    "Unreadable annual-report PDF": 10,
+    "Annual reporting basis or crore unit is not explicit": 58,
+    "Public company page unavailable (HTTP 404)": 1,
+    "No supported 12-month annual column for the verified report year": 1,
+    "Source exceeds safe size limit": 2,
+    "Access/rate denial HTTP 429": 1,
+    "Stopped after access/rate denial": 724
+  },
+  "method": "Exact NSE legal-name matches discover candidates only. The target CIN must appear in the NSE-linked annual PDF, and the NSE symbol must match the public Screener company page. Explicit annual standalone tables only; TTM and ambiguous bases are excluded. Crore values are converted to INR; displayed precision is retained. as_of is the matching NSE annual-report dissemination date; table retrieval is stored separately. Only gaps are filled; existing NSE statements are preserved."
+}
