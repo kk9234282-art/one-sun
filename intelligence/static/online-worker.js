@@ -14,7 +14,7 @@ importScripts('vendor/fflate.js','locality.js');
   }
 
   let catalog,base,viewGeneration=0;
-  const pendingChunks=new Map(),cache=new Map(),queryCache=new Map(),locationStates=new Map(),alignmentChecks=new Set();
+  const pendingChunks=new Map(),cache=new Map(),queryCache=new Map(),locationStates=new Map(),alignmentChecks=new Set(),listedCache=new Map();
   const inactive=new Set(['Strike Off','Struck Off','Dormant','Dissolved','Under Liquidation','Inactive','Amalgamated','Converted To Llp','Dissolved (Liquidated)','Dormant Under Section 455','Dissolved Under Section 59(8)','Dissolved Under Section 54']);
   const weights={revenue_growth:25,profitability:20,financial_stability:20,business_history:15,corporate_compliance:10,industry_prospects:10};
   const notice='Partial research indicator, not an official SEBI IPO eligibility test or investment recommendation. Missing evidence is unscored; points are not normalized to 100.';
@@ -52,11 +52,20 @@ importScripts('vendor/fflate.js','locality.js');
     add(row){const heap=this.heap;if(heap.length<this.limit){heap.push(row);let index=heap.length-1;while(index>0){const parent=(index-1)>>1;if(!this.worse(heap[index],heap[parent]))break;[heap[index],heap[parent]]=[heap[parent],heap[index]];index=parent;}return;}if(compare(row,heap[0],this.p)>=0)return;heap[0]=row;let index=0;while(true){const left=index*2+1,right=left+1;let next=index;if(left<heap.length&&this.worse(heap[left],heap[next]))next=left;if(right<heap.length&&this.worse(heap[right],heap[next]))next=right;if(next===index)break;[heap[index],heap[next]]=[heap[next],heap[index]];index=next;}}
   }
   async function* orderedChunks(list,parallel){for(let i=0;i<list.length;i+=parallel){const descriptors=list.slice(i,i+parallel),values=await Promise.all(descriptors.map(chunk));for(let j=0;j<values.length;j++)yield {descriptor:descriptors[j],values:values[j]};}}
+  async function listedSelection(p,generation=viewGeneration){
+    const descriptor=catalog.listed_index;
+    if(descriptor.source_data_commit!==catalog.data_commit||JSON.stringify(descriptor.full_fields)!==JSON.stringify(catalog.full_fields))throw Error('Listed-company index belongs to a different snapshot or field layout.');
+    if(['city','district','postal_city','roc','postal_code'].some(field=>p.get(field))&&!p.get('state'))throw Error('Choose a state before filtering district, city/area or PIN.');
+    const key=JSON.stringify([generation,relevant(p).sort()]);if(listedCache.has(key))return listedCache.get(key);
+    const task=(async()=>{const values=await chunk(descriptor);if(generation!==viewGeneration)throw Error('Search superseded by a newer view.');const rows=[],stats=new Stats();for(const value of values){const row=unpack(value,true);if(row.effective_listing!=='listed')throw Error('Listed-company index contains an unexpected listing value.');if(matches(row,p)){rows.push(row);stats.add(row);}}return {rows,stats:stats.output()};})();
+    listedCache.set(key,task);while(listedCache.size>6)listedCache.delete(listedCache.keys().next().value);try{return await task;}catch(error){listedCache.delete(key);throw error;}
+  }
   async function scan(p){
     const generation=viewGeneration,key=JSON.stringify([generation,[...p].sort()]);if(queryCache.has(key))return queryCache.get(key);
     const task=(async()=>{
       const page=Math.max(1,Number(p.get('page'))||1),perPage=Math.min(100,Math.max(1,Number(p.get('per_page'))||25)),offset=(page-1)*perPage;
       if(noFinancialResults(p))return {rows:[],total:0,page,per_page:perPage,stats:new Stats().output()};
+      if(p.get('listing')==='listed'&&catalog.listed_index){const selected=await listedSelection(p,generation);const rows=[...selected.rows].sort((a,b)=>compare(a,b,p));return {rows:rows.slice(offset,offset+perPage),total:rows.length,page,per_page:perPage,stats:selected.stats};}
       const location=await locationSelection(p);if(location&&location.id!==null&&location.id<0)return {rows:[],total:0,page,per_page:perPage,stats:new Stats().output()};
       const known=knownStats(p),stats=known?null:new Stats(),state=p.get('state'),list=state?(catalog.states[state]?.chunks||[]):catalog.global_chunks;
       if(known&&known.summary.companies===0)return {rows:[],total:0,page,per_page:perPage,stats:known};
@@ -93,6 +102,7 @@ importScripts('vendor/fflate.js','locality.js');
     if(url.pathname==='/api/export.csv'){
       if((await scan(p)).total>50000)throw Error('CSV exports are limited to 50,000 matching records. Narrow the state, industry or other filters.');
       const columns=[...catalog.index_fields,'roc','postal_code','district','postal_city','source_district','city','city_source','source_incorporated','data_quality'],lines=[columns.map(field=>field==='effective_listing'?'listing_status':field).join(',')],cell=value=>{let text=value==null?'':String(value);if(typeof value==='string'&&/^\s*[=+\-@]/.test(text))text="'"+text;return '"'+text.replaceAll('"','""')+'"';};const list=p.get('state')?catalog.states[p.get('state')]?.chunks||[]:catalog.global_chunks;
+      if(p.get('listing')==='listed'&&catalog.listed_index){const selected=await listedSelection(p);for(const row of selected.rows)lines.push(columns.map(field=>cell(row[field])).join(','));return '\ufeff'+lines.join('\r\n');}
       const location=await locationSelection(p);for(const descriptor of list){const values=await chunk(descriptor),ids=await localityIds(descriptor,values,location);for(let index=0;index<values.length;index++){const row=unpack(values[index],false,ids?ids[index]:null,location?.data);if(matches(row,p))lines.push(columns.map(field=>cell(row[field])).join(','));}}return '\ufeff'+lines.join('\r\n');
     }
     throw Error('This action requires the full application backend.');

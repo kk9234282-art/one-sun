@@ -11,6 +11,11 @@ if(national){
   if(national.global_chunks.reduce((sum,item)=>sum+item.rows,0)!==national.record_count)throw Error('National index count mismatch.');
   if(Object.values(national.states).reduce((sum,state)=>sum+state.stats.summary.companies,0)!==national.record_count)throw Error('State totals do not reconcile.');
   if(Object.values(national.profile_buckets).reduce((sum,item)=>sum+item.rows,0)!==national.record_count)throw Error('Profile count mismatch.');
+  if(national.listed_index){
+    const listed=national.listed_index;
+    if(listed.source_data_commit!==national.data_commit||listed.rows!==national.stats.summary.listed||JSON.stringify(listed.full_fields)!==JSON.stringify(national.full_fields))throw Error('Listed-company index does not match the national snapshot.');
+    if(!/^https:\/\/raw\.githubusercontent\.com\/[^/]+\/[^/]+\/[a-f0-9]{40}\/deployment\/listed\/listed-[a-f0-9]{12}\.json\.gz$/.test(listed.path)||!/^[a-f0-9]{64}$/.test(listed.sha256))throw Error('Listed-company data must use an immutable GitHub URL and checksum.');
+  }
   const html=await readFile(new URL('../deployment/index.html',import.meta.url),'utf8');
   if(!html.includes('data-online-catalog="/national/catalog.json"'))throw Error('National HTML entry point is missing.');
   const output=new URL('../public/',import.meta.url);await rm(output,{recursive:true,force:true});await mkdir(new URL('national/',output),{recursive:true});
