@@ -23,7 +23,9 @@ def normalize(raw,listed_cins,today=None):
     url=urlsplit(row['source_url']);source=row['source_id'].lower()
     if url.scheme!='https' or not url.hostname or url.username or url.password or source not in ('nse','bse','company_report','user_upload'):raise ValueError('Require an HTTPS statement reference and declared source')
     if source in ('nse','bse') and not (url.hostname==source+'india.com' or url.hostname.endswith('.'+source+'india.com')):raise ValueError('Exchange source must reference its official domain')
-    result={'cin':cin,'financial_year':year,'reporting_type':basis,'unit':unit,'period_end':end.isoformat(),'period_months':12,'source_id':source,'source_url':row['source_url'],'as_of':published.isoformat()}
+    metric=row.get('revenue_metric') or 'reported_revenue'
+    if metric not in ('reported_revenue','revenue_from_operations','total_income_banking'):raise ValueError('Unknown revenue definition')
+    result={'revenue_metric':metric,'cin':cin,'financial_year':year,'reporting_type':basis,'unit':unit,'period_end':end.isoformat(),'period_months':12,'source_id':source,'source_url':row['source_url'],'as_of':published.isoformat()}
     for field in FIELDS:
         text=row.get(field,'')
         if text.lower() in ('','na','n/a','null','unknown','-'):result[field]=None;continue

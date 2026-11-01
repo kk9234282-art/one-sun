@@ -10,7 +10,7 @@ class Handler(SimpleHTTPRequestHandler):
  def translate_path(self,path):
   value=unquote(urlsplit(path).path)
   if value=='/':return str(root/'public/index.html')
-  for prefix,folder in [('/static/',root/'public/static'),('/national/',root/'deployment/national'),('/cities/',root/'deployment/cities'),('/listed/',root/'instance/build/listed-index')]:
+  for prefix,folder in [('/static/',root/'public/static'),('/national/',root/'deployment/national'),('/cities/',root/'deployment/cities'),('/listed/',root/'instance/build/listed-index'),('/financials/',root/'instance/build/listed-financials')]:
    if value.startswith(prefix):
     target=(folder/value[len(prefix):]).resolve();return str(target) if target.is_relative_to(folder.resolve()) else str(root/'nonexistent')
   return str(root/'nonexistent')
@@ -19,6 +19,7 @@ class Handler(SimpleHTTPRequestHandler):
   if urlsplit(self.path).path=='/national/catalog.json':
    prefix=f'http://127.0.0.1:{self.server.server_port}'
    data={**catalog,'base_url':prefix+'/national/','locations':{**catalog['locations'],'base_url':prefix+'/cities/'},'listed_index':{**catalog['listed_index'],'path':prefix+'/listed/'+catalog['listed_index']['path'].rsplit('/',1)[1]}}
+   if catalog.get('financials'):data['financials']={**catalog['financials'],'path':prefix+'/financials/'+catalog['financials']['path'].rsplit('/',1)[1]}
    body=json.dumps(data).encode();self.send_response(200);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(body)));self.end_headers();self.wfile.write(body)
   else:super().do_GET()
 server=ThreadingHTTPServer(('127.0.0.1',0),Handler);thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
@@ -33,13 +34,24 @@ try:
   page.locator('#next').click();expect(page.locator('#page-info')).to_contain_text('Page 2',timeout=5000)
   with page.expect_download(timeout=10000) as download:page.locator('#export-csv').click()
   exported=list(csv.DictReader(io.StringIO(Path(download.value.path()).read_text(encoding='utf-8-sig'))));assert len(exported)==1576 and all(row['listing_status']=='listed' and float(row['paid_up_capital'])<10000000 for row in exported)
-  data_requests=[path for path in seen[start:] if path.endswith('.gz')];assert data_requests==['/listed/'+catalog['listed_index']['path'].rsplit('/',1)[1]],data_requests
+  data_requests=[path for path in seen[start:] if path.endswith('.gz')];assert all(path.startswith(('/listed/','/financials/')) for path in data_requests),data_requests
+  assert seen.count('/listed/'+catalog['listed_index']['path'].rsplit('/',1)[1])==1
   # Geographic and class combinations stay within the same compact index.
   combo=page.evaluate("async()=>await AtlasSnapshot.request('/api/companies?listing=listed&capital_band=under_1cr&state=Maharashtra&city=Pune&class=Public')")
   assert combo['total']>0 and all(row['district']=='Pune' and row['state']=='Maharashtra' and row['class']=='Public' and row['paid_up_capital']<10000000 for row in combo['rows'])
   form.locator('details summary').click();form.locator('[name=sort]').select_option('paid_up_capital');form.locator('[name=direction]').select_option('desc');form.get_by_role('button',name='Apply filters',exact=True).click();expect(page.locator('#result-count')).to_have_text('1,576 records',timeout=5000)
   sorted_rows=page.evaluate("async()=>await AtlasSnapshot.request('/api/companies?listing=listed&capital_band=under_1cr&sort=paid_up_capital&direction=desc')")['rows'];assert [row['paid_up_capital'] for row in sorted_rows]==sorted([row['paid_up_capital'] for row in sorted_rows],reverse=True)
+  if catalog.get('financials'):
+   form.locator('[name=capital_band]').select_option('');form.locator('[name=q]').fill('L17110MH1973PLC019786');form.get_by_role('button',name='Apply filters',exact=True).click();expect(page.locator('#result-count')).to_have_text('1 records',timeout=5000)
+   real=page.evaluate("async()=>await AtlasSnapshot.request('/api/company/L17110MH1973PLC019786')")
+   assert real['company']['financial_year']==2026 and real['company']['revenue_inr']>0 and real['company']['profit_inr']>0 and real['financials']
+   assert real['company']['financial_source'].startswith('https://nsearchives.nseindia.com/')
+   page.locator('#results .company-link').click();expect(page.locator('#profile')).to_be_visible();expect(page.locator('#error')).to_be_hidden();expect(page.locator('#profile-content')).to_contain_text('Selected financial statement');expect(page.locator('#profile-content')).to_contain_text('2026-03-31');expect(page.get_by_role('link',name='View source statement ↗',exact=True)).to_have_attribute('href',real['company']['financial_source']);page.locator('#close-profile').click()
+   form.locator('[name=q]').fill('L65920MH1994PLC080618');form.get_by_role('button',name='Apply filters',exact=True).click();expect(page.locator('#result-count')).to_have_text('1 records',timeout=5000)
+   bank=page.evaluate("async()=>await AtlasSnapshot.request('/api/company/L65920MH1994PLC080618')")['company'];assert bank['revenue_metric']=='total_income_banking' and bank['revenue_inr']>0 and bank['profit_inr']>0
+   revenue_index=page.locator('#results th').all_text_contents().index('Revenue / income');expect(page.locator('#results tbody tr').first.locator('td').nth(revenue_index)).to_have_attribute('title','Reported total income (banking)')
+   assert seen.count('/financials/'+catalog['financials']['path'].rsplit('/',1)[1])==1
   page.set_viewport_size({'width':390,'height':844});assert page.evaluate('document.documentElement.scrollWidth<=innerWidth');assert not errors,errors
   browser.close()
- print('Listed browser checks passed:',json.dumps(timings),'1,576 exact matches, one 782,530-byte data request, pagination, totals, CSV, geographic/class combinations and sorting.')
+ print('Listed browser checks passed:',json.dumps(timings),'1,576 exact matches, cached compact data, imported annual figures, banking income labels, pagination, totals, CSV, geographic/class combinations and sorting.')
 finally:server.shutdown();thread.join(timeout=5)

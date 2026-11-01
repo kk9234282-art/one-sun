@@ -14,4 +14,5 @@ assert.throws(()=>new AtlasFinancial.Statements([record({period_months:3})]),/in
 assert.throws(()=>new AtlasFinancial.Statements([record({period_end:'2025-02-30'})]),/invalid/);
 assert.throws(()=>new AtlasFinancial.Statements([record({unit:'USD'})]),/invalid/);
 assert.throws(()=>new AtlasFinancial.Statements([record({revenue:Infinity})]),/non-finite/);
+const changedDefinition=new AtlasFinancial.Statements([record({revenue_metric:'total_income_banking'}),record({financial_year:2024,period_end:'2024-03-31',as_of:'2024-05-20',revenue_metric:'reported_revenue'})]);assert.equal(changedDefinition.attach({cin}).revenue_growth,null);
 console.log('Financial statement tests passed: exact CIN, year/basis isolation, units, zero/losses, annual growth, missing values, source provenance and invalid-record rejection.');

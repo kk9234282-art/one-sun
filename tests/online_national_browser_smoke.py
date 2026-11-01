@@ -23,7 +23,7 @@ def main():
         def translate_path(self,path):
             parsed=unquote(urlsplit(path).path)
             if parsed=='/':return str(root/'deployment/index.html')
-            for prefix,directory in [('/cities/',root/'deployment/cities'),('/static/',root/'intelligence/static'),('/national/',root/'deployment/national')]:
+            for prefix,directory in [('/cities/',root/'deployment/cities'),('/static/',root/'intelligence/static'),('/national/',root/'deployment/national'),('/listed/',root/'instance/build/listed-index'),('/financials/',root/'instance/build/listed-financials')]:
                 if parsed.startswith(prefix):
                     target=(directory/parsed[len(prefix):]).resolve()
                     return str(target) if target.is_relative_to(directory.resolve()) else str(root/'nonexistent')
@@ -33,6 +33,8 @@ def main():
             if urlsplit(self.path).path=='/national/catalog.json':
                 data=dict(catalog);data['base_url']=f'http://127.0.0.1:{self.server.server_port}/national/'
                 data['locations']={**data['locations'],'base_url':f'http://127.0.0.1:{self.server.server_port}/cities/'}
+                if catalog.get('listed_index'):data['listed_index']={**catalog['listed_index'],'path':f'http://127.0.0.1:{self.server.server_port}/listed/'+catalog['listed_index']['path'].rsplit('/',1)[1]}
+                if catalog.get('financials'):data['financials']={**catalog['financials'],'path':f'http://127.0.0.1:{self.server.server_port}/financials/'+catalog['financials']['path'].rsplit('/',1)[1]}
                 body=json.dumps(data).encode();self.send_response(200);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(body)));self.end_headers();self.wfile.write(body)
             else:super().do_GET()
     server=ThreadingHTTPServer(('127.0.0.1',0),Handler);thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
@@ -44,7 +46,7 @@ def main():
             page.on('request',lambda request:writes.append(request.url) if request.method not in ('GET','HEAD') else None)
             page.goto(f'http://127.0.0.1:{server.server_port}/')
             expect(page.locator('.metric .number').first).to_have_text(indian(catalog['record_count']),timeout=30000)
-            assert len([path for path in seen if path.endswith('.gz')])<=2,'Initial browse must not download the country dataset.'
+            assert len([path for path in seen if path.endswith('.gz')])<=2+(2 if catalog.get('financials') else 0),'Initial browse must not download the country dataset.'
             assert not any(path=='/data/companies.json' for path in seen),'Must not silently load the old agriculture subset.'
             assert page.locator('#results tbody tr').count()==25
             headers=page.locator('#results th').all_text_contents();assert 'District' in headers and 'City / postal area' in headers
@@ -106,7 +108,7 @@ def main():
             reviewed=page.evaluate("async cin=>await AtlasSnapshot.request('/api/company/'+cin)",suspicious)
             assert reviewed['company']['incorporated'] is None
             assert reviewed['company']['source_incorporated']==catalog['date_quality'][suspicious]
-            assert reviewed['score']['assessable_points']==0
+            assert reviewed['score']['factors']['business_history']['points'] is None
             assert not any(row['label'] in ['1111','5600','9076'] for row in catalog['stats']['groups']['trends'])
             page.locator('.nav').filter(has_text='Data & imports').click()
             expect(page.locator('#source-cards')).to_contain_text('All-India company master')

@@ -1,5 +1,7 @@
 # Official source investigation
 
+Update — 1 November 2026: the published environment now permits the requested official domains. NSE public CSV/XBRL downloads work; 2,236 supported annual statements for 1,198 exactly matched CINs were imported. BSE returned its own HTTP 403 and was not bypassed. See [financial coverage and acquisition details](LISTED_FINANCIALS.md) and the published financial-source report. The earlier blocked-access investigation below is historical.
+
 Checked in this cloud task on 31 October 2026. No credentials were requested or extracted. The environment initially permits package-manager/Git destinations only. Direct HEAD requests to the NSE CSV and OGD catalog returned proxy `CONNECT 403`. All seven in-application reachability checks failed through the configured proxy. This establishes an environment access blocker, **not** that the official services are down. The domains have been saved as an additive configuration draft and have not been demonstrated to work in the current runtime.
 
 | Source | Official URL / candidate endpoint | Integration | Verified here |

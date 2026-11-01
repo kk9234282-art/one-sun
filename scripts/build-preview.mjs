@@ -27,6 +27,7 @@ if(national){
   await writeFile(new URL('index.html',output),html);
   await cp(new URL('../deployment/national/catalog.json',import.meta.url),new URL('national/catalog.json',output));
   await cp(new URL('../deployment/national/source-report.json',import.meta.url),new URL('national/source-report.json',output));
+  try{await cp(new URL('../deployment/national/financial-source-report.json',import.meta.url),new URL('national/financial-source-report.json',output));}catch(error){if(error.code!=='ENOENT')throw error;}
   await cp(new URL('../intelligence/static/',import.meta.url),new URL('static/',output),{recursive:true});
   console.log(`Built small national website: ${national.record_count} shared companies; compressed data loads on demand from GitHub.`);
   process.exit(0);

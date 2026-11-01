@@ -1,1 +1,1 @@
-cin,financial_year,reporting_type,unit,period_end,period_months,revenue,net_profit,assets,liabilities,expenses,ebitda,source_id,source_url,as_of
+cin,financial_year,reporting_type,unit,period_end,period_months,revenue,revenue_metric,net_profit,assets,liabilities,expenses,ebitda,source_id,source_url,as_of
