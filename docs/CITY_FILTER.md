@@ -1,6 +1,6 @@
 # PIN-based district, PIN code and ROC filters
 
-Choose a state, then use **City / district (PIN)**, an exact six-digit **PIN code**, **ROC**, or a combination. Dashboard totals, rows and CSV exports use the same filters. Changing state clears these three fields. Existing hidden directory columns stay hidden.
+Choose a state, then use **City / district**, an exact six-digit **PIN code**, or both. Dashboard totals, rows and CSV exports use the same filters. Changing state clears these fields. Hover over or focus the asterisk beside City / district to see the PIN explanation. ROC is not shown as a dashboard filter. Existing hidden directory columns stay hidden.
 
 No registered address is parsed. The district lookup uses only the source company PIN and state, joined to the bundled postal reference. ROC filters the source registrar field independently; a registrar jurisdiction can cover several cities and is never used as a company-city fallback.
 
