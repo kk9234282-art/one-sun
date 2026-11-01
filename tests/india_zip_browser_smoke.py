@@ -65,6 +65,9 @@ def main():
                 assert options['city']==['Bengaluru Urban'] and options['city_unknown']==n-1
                 combined=page.evaluate("async()=>await AtlasSnapshot.request('/api/companies?state=Karnataka&postal_code=560001&city=Bengaluru%20Urban')")
                 assert combined['total']==1
+                assert combined['rows'][0]['district']=='Bengaluru Urban'
+                geo=page.evaluate("async()=>await AtlasSnapshot.request('/api/overview?state=Karnataka&city=Bengaluru%20Urban')")
+                assert sum(row['count'] for row in geo['groups']['postal_city'])==1
                 assert options['roc'] and '560001' in options['postal_code']
                 form.locator('[name=city]').fill('Bengaluru Urban');form.get_by_role('button',name='Apply filters',exact=True).click()
                 expect(page.locator('#result-count')).to_have_text('1 records',timeout=30000)

@@ -8,7 +8,9 @@
   let reference;
   const ready=fetch('/static/pin-districts.json').then(async response=>{if(!response.ok)throw Error('PIN district reference could not be loaded.');reference=await response.json();if(reference.schema_version!==1)throw Error('Invalid PIN district reference.');});
   const derive=row=>{if(!reference)throw Error('PIN district reference is not ready.');const pin=String(row.postal_code||'').trim();if(!/^[1-9][0-9]{5}$/.test(pin))return null;return reference.states[canonical(row.state)]?.[pin]||null;};
-  const api={derive,canonical,ready};
+  const area=row=>derive(row)?reference.areas?.[canonical(row.state)]?.[String(row.postal_code||'').trim()]||null:null;
+  const enrich=row=>({...row,source_district:Object.hasOwn(row,'source_district')?row.source_district:(row.district??null),district:derive(row),city:derive(row),postal_city:area(row),district_source:derive(row)?'pin-postal-district':null,postal_city_source:area(row)?'pin-reference-area':null});
+  const api={derive,area,enrich,canonical,ready};
   if(typeof window!=='undefined')window.AtlasLocality=api;
   else self.AtlasLocality=api;
 })();

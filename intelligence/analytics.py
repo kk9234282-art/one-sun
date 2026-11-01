@@ -10,7 +10,7 @@ BASE = f"""WITH ranked AS (
  SELECT f.*,ROW_NUMBER() OVER(PARTITION BY cin ORDER BY financial_year DESC) AS rn
  FROM financials f WHERE reporting_type=:reporting_type AND (:fy='' OR financial_year=CAST(:fy AS INTEGER))
 ), latest AS (SELECT *, CASE unit WHEN 'INR crore' THEN 10000000 WHEN 'INR lakh' THEN 100000 ELSE 1 END AS multiplier FROM ranked WHERE rn=1)
-SELECT c.*, pin_district(c.postal_code,c.state) AS city, CASE WHEN {LISTED} THEN 'listed' ELSE COALESCE(c.listing_status,'unknown') END AS effective_listing,
+SELECT c.cin,c.name,c.class,c.category,c.status,c.incorporated,c.address,c.state,c.industry,c.nic,c.authorised_capital,c.paid_up_capital,c.listing_status,c.source_id,c.as_of,c.updated_at,c.import_id,c.roc,c.postal_code,c.subcategory,c.registered_class,c.district AS source_district,pin_district(c.postal_code,c.state) AS district,pin_area(c.postal_code,c.state) AS postal_city, pin_district(c.postal_code,c.state) AS city, CASE WHEN {LISTED} THEN 'listed' ELSE COALESCE(c.listing_status,'unknown') END AS effective_listing,
  f.financial_year, f.reporting_type, f.revenue*f.multiplier AS revenue_inr, f.net_profit*f.multiplier AS profit_inr,
  f.assets*f.multiplier AS assets_inr, f.liabilities*f.multiplier AS liabilities_inr,
  CASE WHEN p.revenue>0 THEN (f.revenue*f.multiplier/(p.revenue*CASE p.unit WHEN 'INR crore' THEN 10000000 WHEN 'INR lakh' THEN 100000 ELSE 1 END)-1)*100 END AS revenue_growth,
@@ -27,12 +27,13 @@ def query(args):
     if params['fy'] and not str(params['fy']).isdigit():
         raise ValueError('Financial year must be an integer')
     conditions = []
-    for field in ('state','industry','class','status','district','nic','city','roc','postal_code'):
+    for field in ('state','industry','class','status','district','nic','city','roc','postal_code','postal_city'):
         if args.get(field):
-            conditions.append(f'lower({field})=lower(:{field})' if field=='city' else f'{field}=:{field}')
+            conditions.append(f'lower({field})=lower(:{field})' if field in ('city','district','postal_city') else f'{field}=:{field}')
             params[field] = args[field]
-    if str(args.get('city','')).strip().lower()=='(not identified)':
-        conditions.remove('lower(city)=lower(:city)');conditions.append('city IS NULL')
+    for field in ('city','district','postal_city'):
+        if str(args.get(field,'')).strip().lower()=='(not identified)':
+            conditions.remove(f'lower({field})=lower(:{field})');conditions.append(f'{field} IS NULL')
     if args.get('q'):
         params['q'] = '%' + args['q'].replace('\\','\\\\').replace('%','\\%').replace('_','\\_') + '%'
         conditions.append("(name LIKE :q ESCAPE '\\' OR cin LIKE :q ESCAPE '\\' OR cin IN (SELECT cin FROM historical_names WHERE name LIKE :q ESCAPE '\\'))")
@@ -91,7 +92,7 @@ def directory(db, args, export=False):
 def overview(db,args):
     sql, params = query(args)
     groups = {}
-    for field in ('state','industry','class','effective_listing','status'):
+    for field in ('state','industry','class','effective_listing','status','district','postal_city'):
         groups[field] = [dict(r) for r in db.execute(f'SELECT COALESCE({field},\'Unknown\') AS label,COUNT(*) AS count FROM ({sql}) GROUP BY {field} ORDER BY count DESC,label',params)]
     groups['trends'] = [dict(r) for r in db.execute(f"SELECT substr(incorporated,1,4) AS label,COUNT(*) AS count FROM ({sql}) WHERE incorporated IS NOT NULL GROUP BY label ORDER BY label",params)]
     groups['capital'] = [dict(r) for r in db.execute(f"""SELECT CASE WHEN paid_up_capital IS NULL THEN 'Unknown' WHEN paid_up_capital<10000000 THEN '< ₹1 crore' WHEN paid_up_capital<100000000 THEN '₹1–10 crore' ELSE '≥ ₹10 crore' END AS label,COUNT(*) AS count FROM ({sql}) GROUP BY label""",params)]

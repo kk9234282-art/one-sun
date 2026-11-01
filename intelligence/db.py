@@ -11,8 +11,9 @@ def now():
 def connect(path):
     db = sqlite3.connect(path, timeout=30)
     db.row_factory = sqlite3.Row
-    from .locality import derive
+    from .locality import derive,area
     db.create_function('pin_district',2,derive,deterministic=True)
+    db.create_function('pin_area',2,area,deterministic=True)
     db.execute('PRAGMA foreign_keys=ON')
     db.execute('PRAGMA journal_mode=WAL')
     return db

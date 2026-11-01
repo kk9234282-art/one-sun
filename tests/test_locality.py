@@ -2,7 +2,7 @@
 import json,subprocess
 from pathlib import Path
 import pytest
-from intelligence.locality import derive,reference
+from intelligence.locality import derive,reference,area
 
 CASES=[
  ('411001','Maharashtra','Pune'),
@@ -31,3 +31,12 @@ def test_browser_parser_matches_python_and_ignores_address_roc():
     (async()=>{await AtlasLocality.ready;const rows="""+json.dumps(CASES)+""";console.log(JSON.stringify(rows.map(([postal_code,state])=>AtlasLocality.derive({postal_code,state,address:'Wrong City,Wrong District,Gujarat,999999',roc:'ROC Ahmedabad'}))));})().catch(error=>{console.error(error);process.exit(1)});"""
     actual=json.loads(subprocess.check_output(['node','-e',script],cwd=Path(__file__).resolve().parents[1]))
     assert actual==[case[2] for case in CASES]
+
+
+def test_postal_area_is_distinct_from_district():
+    assert derive('413102','Maharashtra')=='Pune'
+    assert area('413102','Maharashtra')=='Baramati'
+    assert derive('421401','Maharashtra')=='Thane'
+    assert area('421401','Maharashtra')=='Murbad'
+    assert area('999999','Maharashtra') is None
+    assert area('413102','Gujarat') is None

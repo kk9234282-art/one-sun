@@ -22,3 +22,9 @@ def derive(postal_code,state):
     pin=str(postal_code or '').strip()
     if not re.fullmatch(r'[1-9][0-9]{5}',pin):return None
     return reference()['states'].get(canonical(state),{}).get(pin)
+
+
+def area(postal_code,state):
+    pin=str(postal_code or '').strip()
+    if not derive(pin,state):return None
+    return reference().get('areas',{}).get(canonical(state),{}).get(pin)

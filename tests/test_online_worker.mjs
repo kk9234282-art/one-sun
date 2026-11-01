@@ -25,9 +25,11 @@ catalog.date_quality={[raw[2][0]]:'1111-11-11'};
 catalog.data_commit='fixture-commit';
 const stateChunk=catalog.states.Maharashtra.chunks[0];
 const cityChunk=asset('cities/map.gz',[[1,1,'411001'],[0,2,'999999']]);cityChunk.cin_order_sha256=createHash('sha256').update(raw.filter(row=>row[7]===1).map(row=>row[0]).join('\n')).digest('hex');
-const cityBody=Buffer.from(JSON.stringify({source_data_commit:catalog.data_commit,mapping_version:2,labels:[null,'Pune'],rocs:[null,'ROC Mumbai','ROC Pune'],postal_codes:['411001','999999'],counts:[1,1],chunks:{[stateChunk.path]:cityChunk}}));
+const cityBody=Buffer.from(JSON.stringify({source_data_commit:catalog.data_commit,mapping_version:2,labels:[null,'Pune'],rocs:[null,'ROC Mumbai','ROC Pune'],postal_codes:['411001','999999'],counts:[1,1],geography:{district:[{label:'Pune',count:1},{label:'Not identified',count:1}],postal_city:[{label:'Pune City',count:1},{label:'Not identified',count:1}]},areas_by_district:{Pune:[{label:'Pune City',count:1}]},chunks:{[stateChunk.path]:cityChunk}}));
 files.set('https://fixture.invalid/national/cities/state.json',cityBody);
 catalog.locations={base_url:'https://fixture.invalid/national/',states:{Maharashtra:{path:'cities/state.json',sha256:createHash('sha256').update(cityBody).digest('hex')}}};
+catalog.locations.global_chunks={};
+for(let i=0;i<globalChunks.length;i++){const descriptor=asset('cities/global'+i+'.gz',i===0?['411001','380001']:['999999','380001']);descriptor.cin_order_sha256=createHash('sha256').update(raw.slice(i*2,i*2+2).map(row=>row[0]).join('\n')).digest('hex');catalog.locations.global_chunks[globalChunks[i].path]=descriptor;}
 files.set('https://fixture.invalid/national/catalog.json',Buffer.from(JSON.stringify(catalog)));
 files.set('/static/pin-districts.json',await readFile(new URL('../intelligence/static/pin-districts.json',import.meta.url)));
 const waiting=new Map();let sequence=0;
@@ -64,4 +66,8 @@ assert.ok((await request('/api/export.csv?state=Maharashtra&city=Pune')).include
 assert.equal((await request('/api/companies?state=Maharashtra&city=Pune&roc=ROC%20Mumbai&postal_code=411001')).total,1);
 assert.equal((await request('/api/companies?state=Maharashtra&city=Pune&roc=ROC%20Pune')).total,0);
 assert.equal((await request('/api/companies?state=Maharashtra&postal_code=999999')).rows[0].name,'BETA THREE');
+const initial=(await request('/api/companies?per_page=1')).rows[0];assert.equal(initial.district,'Pune');assert.equal(initial.postal_city,'Pune City');
+const geo=await request('/api/overview?state=Maharashtra&city=Pune');assert.equal(geo.groups.postal_city[0].label,'Pune City');assert.equal(geo.groups.postal_city.reduce((n,row)=>n+row.count,0),geo.summary.companies);
+assert.equal((await request('/api/companies?state=Maharashtra&city=Pune&postal_city=Pune%20City')).total,1);
+assert.equal((await request('/api/companies?state=Maharashtra&city=Pune&postal_city=Baramati')).total,0);
 console.log('National online worker tests passed: paginated/state/search queries, numeric sort, profiles, missing financials, screening and filtered CSV.');

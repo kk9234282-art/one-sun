@@ -30,10 +30,10 @@
       factors:Object.fromEntries(Object.entries(weights).map(([key, maximum]) => [key, { maximum, points:key === 'business_history' ? points : null }])), notice };
   }
   function selected(data, params) {
-    const exact = ['state','industry','class','status','district','nic','roc','postal_code'];
+    const exact = ['state','industry','class','status','nic','roc','postal_code'];
     const q = (params.get('q') || '').toLowerCase();
     return data.companies.filter(row => {
-      const city=window.AtlasLocality.derive(row);row.city=city;if(params.get('city')&&(params.get('city').toLowerCase()==='(not identified)'?!!city:(city||'').toLowerCase()!==params.get('city').toLowerCase()))return false;
+      Object.assign(row,window.AtlasLocality.enrich(row));const city=row.city;for(const field of ['district','postal_city'])if(params.get(field)){const expected=params.get(field).toLowerCase();if(expected==='(not identified)'?!!row[field]:(row[field]||'').toLowerCase()!==expected)return false;}if(params.get('city')&&(params.get('city').toLowerCase()==='(not identified)'?!!city:(city||'').toLowerCase()!==params.get('city').toLowerCase()))return false;
       if (q && !row.name.toLowerCase().includes(q) && !row.cin.toLowerCase().includes(q)) return false;
       for (const field of exact) if (params.get(field) && row[field] !== params.get(field)) return false;
       if (params.get('listing') && row.effective_listing !== params.get('listing')) return false;
@@ -90,7 +90,7 @@
       other_status:count(row=>row.status!=='Active'&&!inactive.has(row.status)), private:count(row=>row.class==='Private'), public:count(row=>row.class==='Public'),
       listed:count(row=>row.effective_listing==='listed'), unlisted:count(row=>row.effective_listing==='unlisted'), unknown_listing:count(row=>row.effective_listing==='unknown'),
       financial_coverage:0, oldest:dates[0]||null, newest:dates[dates.length-1]||null, llps:0, msmes:0, securities:0, unlinked_securities:0 };
-    const groups = Object.fromEntries(['state','industry','class','effective_listing','status'].map(field=>[field,grouping(rows,field)]));
+    const groups = Object.fromEntries(['state','industry','class','effective_listing','status','district','postal_city'].map(field=>[field,grouping(rows,field)]));
     groups.trends = grouping(rows.filter(row=>analysisDate(row)),row=>analysisDate(row).slice(0,4)).sort((a,b)=>a.label.localeCompare(b.label));
     groups.capital = grouping(rows,row=>row.paid_up_capital==null?'Unknown':row.paid_up_capital<1e7?'< ₹1 crore':row.paid_up_capital<1e8?'₹1–10 crore':'≥ ₹10 crore');
     return {summary,groups,datasets:data.datasets};
@@ -104,7 +104,7 @@
       await ready;await window.AtlasLocality.ready;
       const data = activeData, url = new URL(path, location.origin), params = url.searchParams;
       switch (url.pathname) {
-        case '/api/options': {const result=Object.fromEntries(['state','industry','class','status','district','nic'].map(field=>[field,[...new Set(data.companies.map(row=>row[field]).filter(Boolean))].sort()]));const rows=params.get('state')?data.companies.filter(row=>row.state===params.get('state')):[],cities=rows.map(row=>window.AtlasLocality.derive(row));return {...result,roc:[...new Set(rows.map(row=>row.roc).filter(Boolean))].sort(),postal_code:[...new Set(rows.map(row=>row.postal_code).filter(Boolean))].sort(),city:[...new Set(cities.filter(Boolean))].sort(),city_unknown:cities.filter(value=>!value).length};}
+        case '/api/options': {const result=Object.fromEntries(['state','industry','class','status','district','nic'].map(field=>[field,[...new Set(data.companies.map(row=>row[field]).filter(Boolean))].sort()]));const rows=params.get('state')?data.companies.filter(row=>row.state===params.get('state')):[],cities=rows.map(row=>window.AtlasLocality.derive(row));return {...result,roc:[...new Set(rows.map(row=>row.roc).filter(Boolean))].sort(),postal_code:[...new Set(rows.map(row=>row.postal_code).filter(Boolean))].sort(),city:[...new Set(cities.filter(Boolean))].sort(),city_unknown:cities.filter(value=>!value).length,postal_city:[...new Set(rows.filter(row=>!params.get('city')||(window.AtlasLocality.derive(row)||'(Not identified)').toLowerCase()===params.get('city').trim().toLowerCase()).map(row=>window.AtlasLocality.area(row)).filter(Boolean))].sort(),postal_city_unknown:rows.some(row=>(!params.get('city')||(window.AtlasLocality.derive(row)||'(Not identified)').toLowerCase()===params.get('city').trim().toLowerCase())&&!window.AtlasLocality.area(row))};}
         case '/api/companies': return directory(data,params);
         case '/api/screen': return directory(data,params,true);
         case '/api/overview': return overview(data,params);
@@ -114,7 +114,7 @@
       if (url.pathname.startsWith('/api/company/')) {
         const row = data.byCin.get(decodeURIComponent(url.pathname.split('/').pop()));
         if (!row) throw new Error('Company not found in published data.');
-        return {company:{...reviewed(row),city:window.AtlasLocality.derive(row)},score:score(row),field_sources:[],financials:[],historical_names:[],securities:[],directors:[],filings:[],company_history:[],financial_history:[]};
+        return {company:window.AtlasLocality.enrich(reviewed(row)),score:score(row),field_sources:[],financials:[],historical_names:[],securities:[],directors:[],filings:[],company_history:[],financial_history:[]};
       }
       throw new Error('This action is unavailable in the read-only dataset deployment.');
     }
@@ -135,7 +135,7 @@
         if (typeof value==='string' && /^[\s]*[=+\-@]/.test(text)) text="'"+text;
         return '"'+text.replaceAll('"','""')+'"';
       };
-      const contents = '\ufeff'+[data.fields.map(safe).join(','),...rows.map(row=>data.fields.map(field=>safe(row[field])).join(','))].join('\r\n');
+      const exportFields=[...new Set([...data.fields,'district','postal_city','source_district'])];const contents = '\ufeff'+[exportFields.map(safe).join(','),...rows.map(row=>exportFields.map(field=>safe(row[field])).join(','))].join('\r\n');
       const blob = URL.createObjectURL(new Blob([contents],{type:'text/csv;charset=utf-8'}));
       const link = document.createElement('a');link.href=blob;link.download='companies.csv';link.click();setTimeout(()=>URL.revokeObjectURL(blob),3000);
     } catch(error) { const target=document.querySelector('#error');target.textContent=error.message;target.classList.remove('hidden'); }

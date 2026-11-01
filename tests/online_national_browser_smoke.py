@@ -47,6 +47,9 @@ def main():
             assert len([path for path in seen if path.endswith('.gz')])<=2,'Initial browse must not download the country dataset.'
             assert not any(path=='/data/companies.json' for path in seen),'Must not silently load the old agriculture subset.'
             assert page.locator('#results tbody tr').count()==25
+            headers=page.locator('#results th').all_text_contents();assert 'District' in headers and 'City / postal area' in headers
+            initial=page.evaluate("async()=>await AtlasSnapshot.request('/api/companies')")
+            assert any(row['district'] and row['postal_city'] for row in initial['rows']),initial['rows'][:2]
             assert page.locator('#filters [name=state] option').count()==37
             page.locator('#next').click();expect(page.locator('#page-info')).to_contain_text('Page 2')
             form=page.locator('#filters');form.locator('[name=state]').select_option('Maharashtra');form.get_by_role('button',name='Apply filters',exact=True).click()
@@ -58,6 +61,19 @@ def main():
             expect(page.locator('#result-count')).to_have_text(indian(count)+' records',timeout=120000)
             result=page.evaluate("async()=>await AtlasSnapshot.request('/api/companies?state=Maharashtra&city=Pune')")
             assert result['total']==count and all(row['city']=='Pune' for row in result['rows'])
+            expected_areas=city_data['areas_by_district']['Pune']
+            expect(page.locator('#postal-city-chart .bar-row')).to_have_count(len(expected_areas))
+            displayed=page.locator('#postal-city-chart .bar-value').all_text_contents()
+            assert sum(int(value.replace(',','')) for value in displayed)==count
+            assert all(row['district']=='Pune' for row in result['rows'])
+            # Drill into a distinct town inside Pune district, then return to the district.
+            page.locator('#postal-city-chart .bar-row').filter(has_text='Baramati').first.click()
+            area_count=next(row['count'] for row in expected_areas if row['label']=='Baramati')
+            expect(page.locator('#result-count')).to_have_text(indian(area_count)+' records',timeout=120000)
+            assert form.locator('[name=postal_city]').input_value()=='Baramati'
+            area_rows=page.evaluate("async()=>await AtlasSnapshot.request('/api/companies?state=Maharashtra&city=Pune&postal_city=Baramati')")
+            assert area_rows['total']==area_count and all(row['district']=='Pune' and row['postal_city']=='Baramati' for row in area_rows['rows'])
+            form.locator('[name=postal_city]').fill('')
             # PIN filtering uses the structured master field; ROC is absent from the form.
             assert form.locator('[name=roc]').count()==0
             first=result['rows'][0];assert first['postal_code'] and first['roc']
@@ -76,6 +92,8 @@ def main():
             page.get_by_role('button',name='GRAMGROW PRIVATE LIMITED',exact=True).click()
             expect(page.locator('#profile-content')).to_contain_text('421401',timeout=30000)
             expect(page.locator('#profile-content')).to_contain_text('2022-08-17')
+            expect(page.locator('#profile-content')).to_contain_text('Murbad')
+            expect(page.locator('#profile-content')).to_contain_text('Thane')
             page.locator('#close-profile').click()
             with page.expect_download(timeout=120000) as download:page.locator('#export-csv').click()
             rows=list(csv.DictReader(io.StringIO(Path(download.value.path()).read_text(encoding='utf-8-sig'))));assert len(rows)==1 and rows[0]['cin']=='U01110MH2022PTC388674'

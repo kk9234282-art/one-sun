@@ -258,3 +258,21 @@ def test_city_options_filters_and_totals(app,client,tmp_path):
     assert set(options['roc'])=={'ROC Mumbai','ROC Pune'}
     assert client.get('/api/companies?state=Maharashtra&roc=ROC%20Mumbai&postal_code=411001&city=Pune').get_json()['total']==1
     assert client.get('/api/companies?state=Maharashtra&roc=ROC%20Pune&city=Pune').get_json()['total']==0
+
+
+def test_geographic_list_and_breakdown(app,client,tmp_path):
+    with app.app_context():
+        db=get_db();load(db,tmp_path,'companies',[
+            company(address='Unused',district=None,postal_code='413102'),
+            company(CIN2,district='Original source district',postal_code='411001'),
+            company('U12345MH2011PTC000003',postal_code='999999')])
+        result=directory(db,{'state':'Maharashtra','city':'Pune'})
+        assert result['total']==2
+        assert {row['district'] for row in result['rows']}=={'Pune'}
+        assert {row['postal_city'] for row in result['rows']}=={'Baramati','Pune City'}
+        assert any(row['source_district']=='Original source district' for row in result['rows'])
+        counts=overview(db,{'state':'Maharashtra','city':'Pune'})
+        assert sum(row['count'] for row in counts['groups']['postal_city'])==counts['summary']['companies']==2
+        assert directory(db,{'state':'Maharashtra','city':'Pune','postal_city':'Baramati'})['total']==1
+    options=client.get('/api/options?state=Maharashtra&city=Pune').get_json()
+    assert options['postal_city']==['Baramati','Pune City']
