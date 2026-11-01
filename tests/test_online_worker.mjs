@@ -39,7 +39,7 @@ catalog.active_summary={...asset('active-summary.gz',[active]),path:'/national/a
 files.set('https://fixture.invalid/national/catalog.json',Buffer.from(JSON.stringify(catalog)));
 files.set('/static/pin-districts.json',await readFile(new URL('../intelligence/static/pin-districts.json',import.meta.url)));
 const waiting=new Map(),requested=[];let sequence=0;
-const context={URL,TextEncoder,TextDecoder,Response,crypto:webcrypto,location:{origin:'https://fixture.invalid'},fetch:async url=>{requested.push(String(url));const body=files.get(String(url));return new Response(body||'',{status:body?200:404});},postMessage:message=>{if(message.type==='query-progress')return;const waiter=waiting.get(message.id);waiting.delete(message.id);if(message.type==='failure')waiter.reject(Error(message.message));else waiter.resolve(message.value);}};
+const context={URL,URLSearchParams,TextEncoder,TextDecoder,Response,crypto:webcrypto,location:{origin:'https://fixture.invalid'},fetch:async url=>{requested.push(String(url));const body=files.get(String(url));return new Response(body||'',{status:body?200:404});},postMessage:message=>{if(message.type==='query-progress')return;const waiter=waiting.get(message.id);waiting.delete(message.id);if(message.type==='failure')waiter.reject(Error(message.message));else waiter.resolve(message.value);}};
 context.self=context;vm.createContext(context);
 context.importScripts=(...paths)=>{for(const path of paths)vm.runInContext(path==='locality.js'?locality:path==='financials.js'?financialCode:vendor,context);};
 const financialCode=await readFile(new URL('../intelligence/static/financials.js',import.meta.url),'utf8');
@@ -118,7 +118,7 @@ console.log('Active-only totals, state geography, filter choices, capital facets
 
 // A synthetic name-only lead must never become a financial statement or score input.
 const lead={cin:raw[3][0],revenue_inr:900000000,period_end:'2026-03-31',source_url:'https://www.screener.in/company/SYNTHETIC/',observed_on:'2026-11-01',verification_status:'unverified',confidence:'low'};
-catalog.web_revenue_research={...asset('research.gz',[lead]),path:'/national/research.gz',schema_version:1,source_data_commit:catalog.data_commit};
+catalog.web_revenue_research={...asset('research.gz',[lead]),path:'/national/research.gz',schema_version:1,source_data_commit:catalog.data_commit,target_companies:1,unverified_web_leads:1,pending_research_companies:0};
 files.set('https://fixture.invalid/national/catalog.json',Buffer.from(JSON.stringify(catalog)));await call('init',{url:'/national/catalog.json'});
 const withLead=(await request('/api/companies?q=GAMMA')).rows[0];
 assert.equal(withLead.web_revenue_inr,900000000);assert.equal(withLead.web_revenue_status,'unverified');assert.equal(withLead.revenue_inr,null);assert.equal(withLead.financial_source,null);
@@ -126,3 +126,19 @@ assert.equal((await request('/api/companies?min_revenue=800000000')).total,0);
 const leadProfile=await request('/api/company/'+raw[3][0]);assert.equal(leadProfile.financials.length,0);assert.equal(leadProfile.web_revenue.confidence,'low');assert.equal(leadProfile.score.factors.profitability.points,null);
 const leadCSV=await request('/api/export.csv?q=GAMMA');assert.ok(leadCSV.includes('web_revenue_inr')&&leadCSV.includes('unverified')&&leadCSV.includes('900000000'));
 console.log('Unverified web research stays separate from financial statements, numeric revenue filters and evidence scores.');
+
+const range={...lead,revenue_inr:null,revenue_type:'range',revenue_min_inr:100000000,revenue_max_inr:500000000,revenue_display:'INR 10 cr - 50 cr',source_url:'https://www.tofler.in/synthetic/company/'+raw[3][0]};
+catalog.web_revenue_research={...asset('ranges.gz',[range]),path:'/national/ranges.gz',schema_version:1,source_data_commit:catalog.data_commit,target_companies:1,unverified_web_leads:1,pending_research_companies:0};
+files.set('https://fixture.invalid/national/catalog.json',Buffer.from(JSON.stringify(catalog)));await call('init',{url:'/national/catalog.json'});
+const rangeRow=(await request('/api/companies?q=GAMMA')).rows[0];assert.equal(rangeRow.web_revenue_inr,null);assert.equal(rangeRow.web_revenue_display,'INR 10 cr - 50 cr');assert.equal(rangeRow.web_revenue_min_inr,100000000);assert.equal(rangeRow.revenue_inr,null);
+assert.equal((await request('/api/companies?min_revenue=100000000')).total,0);
+console.log('Public revenue ranges retain bounds and never invent exact revenue or enter financial filters.');
+
+const exactStart=requested.length;const exact=await request('/api/companies?q='+raw[3][0]+'&status=Active&capital_band=10cr_plus');assert.equal(exact.total,1);assert.equal(exact.rows[0].web_revenue_display,'INR 10 cr - 50 cr');
+assert.equal((await request('/api/companies?q='+raw[3][0]+'&status=Strike%20Off')).total,0);
+assert.equal((await request('/api/companies?q='+raw[3][0]+'&page=2&per_page=1')).rows.length,0);
+const exactCSV=await request('/api/export.csv?q='+raw[3][0]+'&page=2');assert.ok(exactCSV.includes('GAMMA FOUR')&&!exactCSV.includes('ALPHA TWO'));
+assert.ok(!requested.slice(exactStart).some(url=>url.includes('/index/')),'Exact CIN research must not scan national indices.');
+console.log('Exact CIN lookup/export use profile buckets and preserve filters and pagination.');
+
+assert.equal((await request('/api/overview')).summary.financial_coverage,1,'Unverified ranges must not increase imported financial coverage.');

@@ -72,9 +72,15 @@ try:
    research=page.evaluate("async()=>await AtlasSnapshot.request('/api/company/L17100GJ1983PLC028990')")
    assert research['company']['revenue_inr'] is None and research['financials']==[] and research['web_revenue']['verification_status']=='unverified' and research['web_revenue']['revenue_inr']==4650000000
    assert research['score']['factors']['profitability']['points'] is None
-   page.locator('#results .company-link').click();expect(page.locator('#profile-content')).to_contain_text('Web-reported revenue · unverified');expect(page.locator('#profile-content')).to_contain_text('Low confidence: name match only');expect(page.get_by_role('link',name='View unverified revenue source ↗',exact=True)).to_have_attribute('href','https://www.screener.in/company/AARNAV/');page.locator('#close-profile').click()
+   page.locator('#results .company-link').click();expect(page.locator('#profile-content')).to_contain_text('Web-reported revenue · unverified');expect(page.locator('#profile-content')).to_contain_text('Low confidence: unique normalized legal name');expect(page.get_by_role('link',name='View unverified revenue source ↗',exact=True)).to_have_attribute('href','https://www.screener.in/company/AARNAV/');page.locator('#close-profile').click()
    with page.expect_download(timeout=10000) as queue_download:page.get_by_role('link',name='Download all high-capital research companies',exact=True).click()
    queue=list(csv.DictReader(io.StringIO(Path(queue_download.value.path()).read_text(encoding='utf-8-sig'))));assert len(queue)==31994 and all(row['master_status']=='Active' and float(row['paid_up_capital_inr'])>=100000000 for row in queue)
+  if catalog.get('web_revenue_research',{}).get('direct_public_revenue_ranges'):
+   form.locator('[name=listing]').select_option('');form.locator('[name=q]').fill('U61200MH2014FTC258522');form.get_by_role('button',name='Apply filters',exact=True).click();expect(page.locator('#result-count')).to_have_text('1 records',timeout=5000)
+   private_range=page.evaluate("async()=>await AtlasSnapshot.request('/api/company/U61200MH2014FTC258522')")
+   assert private_range['company']['revenue_inr'] is None and private_range['company']['web_revenue_inr'] is None
+   assert private_range['web_revenue']['revenue_min_inr']==10000000 and private_range['web_revenue']['revenue_max_inr']==1000000000 and private_range['web_revenue']['period_end']=='2024-03-31'
+   page.locator('#results .company-link').click();expect(page.locator('#profile-content')).to_contain_text('INR 1 cr - 100 cr');expect(page.locator('#profile-content')).to_contain_text('2024-03-31');expect(page.locator('#profile-content')).to_contain_text('Public profile CIN matches master');page.locator('#close-profile').click()
   page.set_viewport_size({'width':390,'height':844});assert page.evaluate('document.documentElement.scrollWidth<=innerWidth');assert not errors,errors
   browser.close()
  print('Listed browser checks passed:',json.dumps(timings),f'{expected} active exact matches, cached compact data, imported annual figures, banking income labels, pagination, totals, CSV, geographic/class combinations and sorting.')

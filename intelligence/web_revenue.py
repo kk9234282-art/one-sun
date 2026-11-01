@@ -39,7 +39,7 @@ def unique_leads(rows):
     for row in rows:groups.setdefault(row['cin'],[]).append(row)
     result=[];conflicts=[]
     for cin,records in groups.items():
-        measurements={(r['revenue_inr'],r['period_end'],r['reporting_basis']) for r in records}
+        measurements={(r['revenue_inr'],r.get('revenue_min_inr'),r.get('revenue_max_inr'),r['period_end'],r['reporting_basis']) for r in records}
         if len(measurements)!=1:conflicts.append(cin);continue
         chosen=dict(min(records,key=lambda r:r['source_url']))
         chosen['alternate_source_urls']=sorted({r['source_url'] for r in records if r['source_url']!=chosen['source_url']})

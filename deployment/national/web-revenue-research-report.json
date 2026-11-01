@@ -4,17 +4,40 @@
   "target_companies": 31994,
   "capital_scope": "Active, paid-up capital >= INR 100000000",
   "verified_statement_companies": 1352,
-  "unverified_web_leads": 150,
-  "cached_pages_examined": 151,
+  "unverified_web_leads": 903,
+  "cached_pages_examined": 900,
+  "direct_public_revenue_ranges": 4,
   "cached_pages_rejected": 0,
   "duplicate_source_pages": 1,
   "conflicting_company_matches": 0,
-  "pending_research_companies": 30492,
-  "method": "Unique normalized legal-name candidate from NSE equity list; source page symbol checked. Master CIN NOT verified. Only existing cached public annual tables were read; no general web search performed. Search links are research suggestions, not evidence.",
-  "rows": 150,
-  "path": "/national/web-revenue-5f7402d1e194.json.gz",
-  "sha256": "5f7402d1e1942c3d9c462a36786938ffb48d39c97f659f37a3d2704d14d47418",
-  "bytes": 14847,
+  "chronology_rejections": [],
+  "pending_research_companies": 29739,
+  "method": "Screener: unique normalized legal-name candidate with source NSE symbol checked; master CIN not confirmed. Tofler: primary public-profile CIN matches master, but the revenue range is not independently verified. Cached Screener annual tables and freely displayed, dated Tofler revenue ranges were read; no general web search results were retrieved. Search links are research suggestions, not evidence.",
+  "rows": 903,
+  "path": "/national/web-revenue-4619024be0c1.json.gz",
+  "sha256": "4619024be0c125a5a00ab74817c9bcee33e709a2423f427615c2f775680aa8d5",
+  "bytes": 84604,
   "queue_csv_path": "/national/high-capital-revenue-research.csv",
-  "leads_csv_path": "/national/unverified-web-revenue.csv"
+  "leads_csv_path": "/national/unverified-web-revenue.csv",
+  "provider_access": {
+    "network": "unrestricted",
+    "dedicated_search_tool_available": false,
+    "general_search": {
+      "duckduckgo": "HTTP 202 human-verification challenge; stopped",
+      "bing": "robots disallows automated search path",
+      "brave": "robots disallows automated search path",
+      "mojeek": "robots disallows automated search path"
+    },
+    "direct_profiles": {
+      "companycheck": "HTTP 403; stopped",
+      "tofler": "Repeated HTTP 503 service barriers; stopped after four dated public ranges"
+    },
+    "note": "Provider barriers are not evidence that a company has no revenue or no public financial information."
+  },
+  "additional_public_page_batch": {
+    "candidates": 752,
+    "pages_checked": 752,
+    "pages_fetched": 751,
+    "provider_stop": null
+  }
 }
