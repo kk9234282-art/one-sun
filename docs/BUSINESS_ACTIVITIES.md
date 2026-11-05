@@ -1,6 +1,6 @@
 # Business activity research
 
-The master has 20 broad industrial categories. Its normalized `nic` field is empty across 3,236,908 records. Five-digit activity codes are preserved from CIN positions 2–6, but the source does not declare a classification version. The application does not interpret them using a guessed NIC version or relabel the registered industry.
+The master has 20 broad industrial categories. Its normalized `nic` field is empty across 3,236,908 records. Five-digit activity codes are preserved from CIN positions 2–6, but the source does not declare a classification version. The application does not assign a guessed NIC edition or relabel the registered industry. A separate [bulk CIN reference lookup](CIN_ACTIVITIES.md) now preserves version-labelled candidates across the full master, including explicit broad and ambiguous matches.
 
 The first enrichment batch extracts 1,143 public About descriptions from already cached Screener issuer pages. It provides 38 keyword-derived activity tags. These tags describe the source text, may overlap, and are research aids rather than an independently verified taxonomy. Company names do not determine tags.
 

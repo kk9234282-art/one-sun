@@ -16,6 +16,8 @@ def connect(path):
     db.create_function('pin_area',2,area,deterministic=True)
     from .business_activity import matches
     db.create_function('activity_matches',4,matches,deterministic=True)
+    from .registered_activity import matches as registered_matches
+    db.create_function('registered_activity_matches',3,registered_matches,deterministic=True)
     db.execute('PRAGMA foreign_keys=ON')
     db.execute('PRAGMA journal_mode=WAL')
     return db

@@ -36,6 +36,11 @@ def query(args):
             conditions.remove(f'lower({field})=lower(:{field})');conditions.append(f'{field} IS NULL')
     if args.get('activity_evidence') and args['activity_evidence'] not in ('source_described','cin_checked','name_matched','needs_research'):
         raise ValueError('Invalid business activity evidence filter')
+    if args.get('registered_activity_status') and args['registered_activity_status'] not in ('reference_candidate','multiple_candidates','unmapped'):
+        raise ValueError('Invalid registered activity status')
+    if args.get('registered_activity_q') or args.get('registered_activity_status'):
+        params['registered_activity_q']=args.get('registered_activity_q','').strip();params['registered_activity_status']=args.get('registered_activity_status','')
+        conditions.append('registered_activity_matches(cin,:registered_activity_q,:registered_activity_status)=1')
     if args.get('registered_activity_code'):
         code=args['registered_activity_code']
         if len(code)!=5 or not code.isascii() or not code.isdigit():raise ValueError('Registered activity code must contain five digits')

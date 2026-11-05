@@ -162,3 +162,20 @@ assert.equal((await request('/api/companies?registered_activity_code=12345')).to
 await assert.rejects(()=>request('/api/companies?registered_activity_code=12'),/five digits/);
 await assert.rejects(()=>request('/api/companies?activity_evidence=verified'),/evidence/);
 console.log('Business activities: bounded search, tags, evidence levels, registered codes and combined filters passed.');
+
+// CIN candidates enrich all companies independently of source-description coverage.
+const codeRow={candidates:[{edition:'2004',reference_code:'12345',level:5,description:'Synthetic registered activity'}],status:'reference_candidate',label:'Synthetic registered activity',stats:stats(raw),active_stats:stats(activeRows)};
+const cinData={schema_version:1,source_data_commit:catalog.data_commit,codes:{'12345':codeRow},report:{companies_processed:4}};
+catalog.cin_activities={...asset('cin.gz',[cinData]),path:'/national/cin.gz',schema_version:1,source_data_commit:catalog.data_commit,companies:4};
+files.set('https://fixture.invalid/national/catalog.json',Buffer.from(JSON.stringify(catalog)));await call('init',{url:'/national/catalog.json'});
+const optionsWithCin=await request('/api/options?status=Active');assert.equal(optionsWithCin.registered_activity_codes[0].value,'12345');
+assert.equal((await request('/api/companies?registered_activity_code=12345&status=Active')).total,3);
+assert.equal((await request('/api/overview?registered_activity_code=12345&status=Active')).summary.companies,3);
+assert.equal((await request('/api/companies?registered_activity_code=12345&status=Active&per_page=1&page=2')).rows[0].name,'ALPHA TWO');
+const cinRows=await request('/api/companies?registered_activity_q=Synthetic%20registered');assert.equal(cinRows.total,4);assert.equal(cinRows.rows[0].registered_activity_status,'reference_candidate');
+assert.equal((await request('/api/companies?registered_activity_status=unmapped')).total,0);
+assert.equal((await request('/api/company/'+raw[0][0])).company.registered_activity_candidates[0].edition,'2004');
+assert.equal((await request('/api/companies?registered_activity_code=99999')).total,0);
+assert.equal((await request('/api/companies?activity_evidence=needs_research&registered_activity_status=reference_candidate')).total,3);
+await assert.rejects(()=>request('/api/companies?registered_activity_status=verified'),/status/);
+console.log('CIN reference candidates: full coverage, source separation, pagination, known totals and filtering passed.');

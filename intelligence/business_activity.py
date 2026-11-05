@@ -87,6 +87,8 @@ def dataset():
 def records():return {r['cin']:r for r in dataset()['records']}
 
 def enrich(row):
+    from .registered_activity import details
+    row.update(details(row['cin']))
     entry=records().get(row['cin']);row.update(registered_activity_code=row['cin'][1:6],business_description=entry['description'] if entry else None,business_tags=entry['tags'] if entry else [],activity_evidence=entry['identity_status'] if entry else 'needs_research',activity_source=entry['source_url'] if entry else None,activity_observed_on=entry['observed_on'] if entry else None,activity_identity_source=entry.get('identity_source_url') if entry else None)
     return row
 

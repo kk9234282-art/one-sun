@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "source_data_commit": "bab28087f778efc69f3c47e2645e001e021b4ed3",
+  "companies_processed": 3236908,
+  "active_companies": 2189416,
+  "unique_cin_codes": 6748,
+  "all_company_counts": {
+    "unmapped": 115591,
+    "multiple_candidates": 683053,
+    "reference_candidate": 2438264
+  },
+  "active_company_counts": {
+    "unmapped": 41772,
+    "multiple_candidates": 439623,
+    "reference_candidate": 1708021
+  },
+  "registered_activity_candidates": 3121317,
+  "active_registered_activity_candidates": 2147644,
+  "note": "Registration-code reference candidates, not verified current business. NIC edition is not declared by the company master. Both 2004 and 2008 candidates are retained; shorter matches are explicitly labelled broad. Other historical editions may remain unresolved. No company-name inference or per-company internet research."
+}

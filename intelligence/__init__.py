@@ -148,6 +148,9 @@ def create_app(config=None):
         cities=[row[0] for row in db.execute("SELECT DISTINCT pin_district(postal_code,state) AS city FROM companies WHERE state=? AND (?='' OR status=?) ORDER BY city",(state,status,status))] if state else []
         from .business_activity import dataset
         values['activity_tags']=sorted(dataset().get('report',{}).get('activity_tags',{}))
+        from .registered_activity import details
+        codes=[row[0] for row in db.execute("SELECT DISTINCT substr(cin,2,5) FROM companies WHERE (?='' OR status=?) ORDER BY 1",(status,status))]
+        values['registered_activity_codes']=[{'value':code,'label':code+' · '+details('U'+code+'MH2010PTC000001')['registered_activity'][:180]} for code in codes]
         values.update(city=[value for value in cities if value],city_unknown=int(None in cities))
         for field in ('roc','postal_code'):
             values[field]=[row[0] for row in db.execute(f"SELECT DISTINCT {field} FROM companies WHERE state=? AND {field} IS NOT NULL AND (?='' OR status=?) ORDER BY {field}",(state,status,status))] if state else []

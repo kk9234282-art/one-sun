@@ -55,4 +55,7 @@ def test_flask_directory_and_totals_share_activity_evidence(tmp_path,monkeypatch
         assert directory(db,{'activity_evidence':'cin_checked'})['total']==0
         assert directory(db,{'activity_evidence':'needs_research'})['total']==1
         assert directory(db,{'registered_activity_code':'15511'})['total']==1
+        assert directory(db,{'registered_activity_q':'liquor'})['total']==1
+        assert directory(db,{'registered_activity_status':'unmapped'})['total']==0
+        assert directory(db,{'registered_activity_status':'multiple_candidates'})['total']==1
         with pytest.raises(ValueError):directory(db,{'registered_activity_code':'155'})
