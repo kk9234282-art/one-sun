@@ -173,6 +173,46 @@ def create_app(config=None):
             result[table] = [dict(r) for r in db.execute(f'SELECT * FROM {table} WHERE cin=? ORDER BY rowid DESC LIMIT 200',(cin,))]
         return jsonify(result)
 
+    @app.get('/api/activity-reviews')
+    def reviewed_companies():
+        rows=get_db().execute("SELECT r.cin,c.name,r.version,r.payload,r.saved_at FROM activity_reviews r JOIN companies c ON c.cin=r.cin WHERE r.version=(SELECT MAX(x.version) FROM activity_reviews x WHERE x.cin=r.cin) ORDER BY r.saved_at DESC LIMIT 200").fetchall()
+        items=[]
+        for row in rows:
+            payload=json.loads(row['payload'])
+            current={key:payload[key] for key in ('description','status','review_date')}
+            items.append({'cin':row['cin'],'company_name':row['name'],'current':current|{'version':row['version'],'saved_at':row['saved_at']}})
+        return jsonify(rows=items,scope='shared',limit=200)
+
+    @app.get('/api/company/<cin>/activity-reviews')
+    def company_activity_reviews(cin):
+        from .activity_reviews import history
+        db=get_db()
+        if not db.execute('SELECT 1 FROM companies WHERE cin=?',(cin,)).fetchone():abort(404)
+        rows=history(db,cin)
+        return jsonify(current=rows[0] if rows else None,history=rows,scope='shared')
+
+    @app.post('/api/company/<cin>/activity-reviews')
+    def save_activity_review(cin):
+        from .activity_reviews import validate,history
+        db=get_db()
+        if not db.execute('SELECT 1 FROM companies WHERE cin=?',(cin,)).fetchone():abort(404)
+        request.max_content_length=64*1024
+        value=request.get_json(silent=True)
+        if not isinstance(value,dict):raise ValueError('A review object is required')
+        expected=value.get('expected_version')
+        if type(expected) is not int or expected<0:raise ValueError('A non-negative expected review version is required')
+        review=validate(value)
+        try:
+            db.execute('BEGIN IMMEDIATE')
+            version=db.execute('SELECT COALESCE(MAX(version),0) FROM activity_reviews WHERE cin=?',(cin,)).fetchone()[0]
+            if version!=expected:
+                db.rollback();return jsonify(error='This review changed. Reopen the company to load the latest version.'),409
+            db.execute('INSERT INTO activity_reviews VALUES(?,?,?,?,?)',(cin,version+1,json.dumps(review,ensure_ascii=False),g.user['id'],now()));db.commit()
+        except Exception:
+            db.rollback();raise
+        rows=history(db,cin)
+        return jsonify(current=rows[0],history=rows,scope='shared'),201
+
     @app.get('/api/screen')
     def screen():
         args = request.args.to_dict() | {'listing':'unlisted'}

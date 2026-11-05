@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import vm from 'node:vm';
+const context={window:{},URL,Intl,Date,Set,Object};vm.createContext(context);
+vm.runInContext(await readFile(new URL('../intelligence/static/research.js',import.meta.url),'utf8'),context);
+const company={cin:'U20110MH2010PTC000001',registered_activity_code:'20110',industry:'Manufacturing (Wood Products)',registered_activity_candidates:[{edition:'2004',level:5,reference_code:'20110',description:'Saw milling and planing of wood'},{edition:'2008',level:5,reference_code:'20110',description:'Manufacture of basic chemicals'}],registered_activity_status:'multiple_candidates',activity_evidence:'name_matched'};
+const lines=context.window.AtlasResearch.explain(company,new URLSearchParams({registered_activity_code:'20110',industry:'Manufacturing (Wood Products)',activity_evidence:'name_matched'}));
+assert.ok(lines.some(text=>text.includes('NIC 2004')&&text.includes('exact five-digit')));
+assert.ok(lines.some(text=>text.includes('NIC 2008')&&text.includes('basic chemicals')));
+assert.ok(lines.some(text=>text.includes('no edition has been selected')));
+assert.ok(lines.some(text=>text.includes('does not prove an error or two current businesses')));
+assert.ok(lines.some(text=>text.includes('company CIN not confirmed')));
+assert.ok(lines.some(text=>text.includes('Manual reviews are stored separately')));
+const broad={...company,registered_activity_candidates:[{edition:'2004',level:3,reference_code:'722',description:'Software publishing'}]};
+assert.ok(context.window.AtlasResearch.explain(broad,new URLSearchParams({registered_activity_q:'software'})).some(text=>text.includes('broad 3-digit match')));
+console.log('Match explanations preserve edition ambiguity, broad precision and unverified source identity.');

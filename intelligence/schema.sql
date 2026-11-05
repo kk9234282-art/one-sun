@@ -87,3 +87,9 @@ CREATE TABLE IF NOT EXISTS import_annotations (
  scope TEXT NOT NULL, date_basis TEXT NOT NULL, provenance TEXT NOT NULL,
  original_sha256 TEXT NOT NULL, archived_file TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS activity_reviews (
+ cin TEXT NOT NULL REFERENCES companies(cin), version INTEGER NOT NULL CHECK(version>0),
+ payload TEXT NOT NULL, reviewer_id INTEGER NOT NULL REFERENCES users(id), saved_at TEXT NOT NULL,
+ PRIMARY KEY(cin,version)
+);
+CREATE INDEX IF NOT EXISTS activity_reviews_saved_idx ON activity_reviews(saved_at DESC);
