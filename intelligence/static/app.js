@@ -74,7 +74,7 @@ function setupFilterDropdowns(){
   function render(){
    list.replaceChildren();const query=search.value.trim().toLocaleLowerCase();
    const matches=[...select.options].filter(option=>!option.disabled&&option.textContent.toLocaleLowerCase().includes(query));
-   for(const option of matches){const item=el('button',option.textContent,'filter-dropdown-option');item.type='button';item.setAttribute('role','option');item.setAttribute('aria-selected',String(option.value===select.value));item.addEventListener('click',()=>{select.value=option.value;select.dispatchEvent(new Event('change',{bubbles:true}));refreshFilterDropdowns();close();trigger.focus();});list.append(item);}
+   for(const option of matches){const item=el('button',option.textContent,'filter-dropdown-option');item.type='button';item.setAttribute('role','option');item.setAttribute('aria-selected',String(option.value===select.value));item.addEventListener('pointerdown',event=>event.preventDefault());item.addEventListener('click',()=>{select.value=option.value;select.dispatchEvent(new Event('change',{bubbles:true}));refreshFilterDropdowns();close();trigger.focus();});list.append(item);}
    if(!matches.length){const empty=el('p','No matching options','muted');empty.setAttribute('role','status');list.append(empty);}
   }
   function sync(){trigger.textContent=select.selectedOptions[0]?.textContent||'Choose an option';trigger.disabled=select.disabled;if(select.disabled)close();if(!panel.hidden)render();}
@@ -82,7 +82,7 @@ function setupFilterDropdowns(){
   trigger.addEventListener('click',()=>{if(!panel.hidden){close();return;}closeCurrent();closeCurrent=close;search.value='';panel.hidden=false;trigger.setAttribute('aria-expanded','true');render();search.focus();});
   search.addEventListener('input',render);
   panel.addEventListener('keydown',event=>{const items=[...list.querySelectorAll('button')],i=items.indexOf(document.activeElement);if(event.key==='Escape'){event.preventDefault();close();trigger.focus();}else if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();items[(i+(event.key==='ArrowDown'?1:-1)+items.length)%items.length]?.focus();}else if(event.key==='Enter'&&event.target===search){event.preventDefault();items[0]?.click();}});
-  wrap.addEventListener('focusout',()=>queueMicrotask(()=>{if(!wrap.contains(document.activeElement))close();}));
+  wrap.addEventListener('focusout',event=>{if(!wrap.contains(event.relatedTarget))close();});
   document.addEventListener('click',event=>{if(!wrap.contains(event.target))close();});
   // Prevent the surrounding label from forwarding a click to the hidden select.
   wrap.addEventListener('click',event=>event.stopPropagation());sync();
