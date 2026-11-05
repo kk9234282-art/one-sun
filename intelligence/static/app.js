@@ -19,7 +19,7 @@ function metrics(summary){const root=$('#metrics');root.replaceChildren();const 
 function table(root,rows,columns,company=false){root.replaceChildren();const head=el('thead'),tr=el('tr');for(const [key,label]of columns)tr.append(el('th',label));head.append(tr);const body=el('tbody');for(const row of rows){const tr=el('tr');for(const [key,label,type]of columns){const td=el('td');if(key==='name'&&company){const b=el('button',row.name,'company-link');b.addEventListener('click',()=>profile(row.cin));td.append(b);}else if(['revenue_inr','profit_inr','financial_year'].includes(key)&&row.effective_listing==='listed'&&row[key]==null){td.textContent=row.financial_source?'Not reported':'Not imported';td.title=row.financial_source?'The selected statement does not report this figure.':'No financial statement is imported for this company, financial year and reporting basis.';}else if(key==='web_revenue_inr'){td.textContent=row.web_revenue_display||(row[key]==null?'—':money(row[key]));if(row[key]!=null||row.web_revenue_display)td.title='Unverified web claim · low confidence · period ending '+row.web_revenue_period+' · '+row.web_revenue_source;}else if(key==='financial_year')td.textContent=row[key]==null?'Unknown':String(row[key]);else if(type==='money')td.textContent=money(row[key]);else if(key==='score')td.textContent=`${fmt(row.research_score?.observed_points)} / ${fmt(row.research_score?.assessable_points)} assessable`;
 else td.textContent=['district','postal_city'].includes(key)&&!row[key]?'Not identified':fmt(row[key]);if(key==='revenue_inr'&&row.revenue_metric)td.title=row.revenue_metric==='total_income_banking'?'Reported total income (banking)':'Reported revenue; see the financial statement source.';tr.append(td);}body.append(tr);}if(!rows.length){const td=el('td','No records found. Check filters or import an authorised dataset.','empty');td.colSpan=columns.length;const tr=el('tr');tr.append(td);body.append(tr);}root.append(head,body);}
 const companyColumns=[['name','Company'],['cin','CIN'],['class','Class'],['registered_class','Registered class'],['category','Category'],['status','Status'],['state','State'],['district','District'],['postal_city','City / postal area'],['industry','Industry'],['nic','NIC'],['incorporated','Incorporated'],['effective_listing','Listing'],['authorised_capital','Authorised capital','money'],['paid_up_capital','Paid-up capital','money'],['revenue_inr','Revenue / income','money'],['profit_inr','Net profit','money'],['financial_year','FY ending'],['web_revenue_inr','Web revenue · unverified','money'],['web_revenue_period','Web period ending'],['as_of','Source date']];
-async function load(){const tick=++sequence;window.AtlasOnline?.beginView();try{await cityOptions();}catch(e){error(e);return;}if(tick!==sequence)return;show('#error',false);const independent=['securities','llps','msmes'].includes(view),sourceView=view==='sources';show('#filters',!sourceView);show('#metrics',!independent&&!sourceView);show('#dashboard',['overview','private','public','states','industries'].includes(view));show('#map-section',view==='states');show('#research-note',view==='screen');show('#directory-section',!sourceView);show('#sources-section',sourceView);show('#export-csv',!independent&&!sourceView);show('#export-xlsx',!independent&&!sourceView);
+async function load(){refreshFilterDropdowns();const tick=++sequence;window.AtlasOnline?.beginView();try{await cityOptions();}catch(e){error(e);return;}if(tick!==sequence)return;show('#error',false);const independent=['securities','llps','msmes'].includes(view),sourceView=view==='sources';show('#filters',!sourceView);show('#metrics',!independent&&!sourceView);show('#dashboard',['overview','private','public','states','industries'].includes(view));show('#map-section',view==='states');show('#research-note',view==='screen');show('#directory-section',!sourceView);show('#sources-section',sourceView);show('#export-csv',!independent&&!sourceView);show('#export-xlsx',!independent&&!sourceView);
 try{if(sourceView){await sources();return;}$('#result-count').textContent='Loading companies…';const p=params();p.set('page',page);let result;
 if(independent){result=await api('/api/records/'+view+'?'+new URLSearchParams({page,q:p.get('q')||''}));if(tick!==sequence)return;const columns=view==='securities'?[['name','Security name'],['exchange','Exchange'],['symbol','Symbol / code'],['isin','ISIN'],['cin','Linked CIN'],['status','Status'],['industry','Industry'],['market_cap_inr','Market cap','money'],['as_of','Source date']]:view==='llps'?[['name','LLP name'],['llpin','LLPIN'],['status','Status'],['state','State'],['incorporated','Incorporated'],['as_of','Source date']]:[['name','Enterprise name'],['registration_id','Udyam ID'],['state','State'],['category','Registration category'],['as_of','Source date']];table($('#results'),result.rows,columns);$('#table-title').textContent=view==='securities'?'Listed securities · separate from unique companies':view==='llps'?'LLP directory':'MSME registration directory';
 // Company-specific controls do not apply to independent universes.
@@ -57,3 +57,36 @@ $('[name=city]').addEventListener('change',()=>cityOptions().catch(error));
 window.addEventListener('atlas-data-changed',()=>{$('#filters').reset();page=1;options().then(load).catch(error);});
 options().then(load).catch(error);
 }
+
+// Keep native selects as the form's source of truth, with one searchable UI.
+function refreshFilterDropdowns(){document.querySelectorAll('#filters select').forEach(select=>select.atlasRefresh?.());}
+function setupFilterDropdowns(){
+ const form=document.querySelector('#filters');if(!form)return;
+ let closeCurrent=()=>{};
+ form.querySelectorAll('select').forEach((select,index)=>{
+  const label=select.closest('label'),name=label?.firstChild.textContent.trim()||select.name;
+  const wrap=el('div',undefined,'filter-dropdown'),trigger=el('button',undefined,'filter-dropdown-trigger'),panel=el('div',undefined,'filter-dropdown-panel'),search=el('input'),list=el('div',undefined,'filter-dropdown-list');
+  trigger.type='button';trigger.setAttribute('aria-label',name);trigger.setAttribute('aria-haspopup','listbox');trigger.setAttribute('aria-expanded','false');
+  panel.hidden=true;search.type='search';search.placeholder='Search '+name.toLowerCase()+'…';search.setAttribute('aria-label','Search '+name);search.autocomplete='off';
+  list.id='filter-list-'+index;list.setAttribute('role','listbox');list.setAttribute('aria-label',name);trigger.setAttribute('aria-controls',list.id);
+  select.classList.add('filter-native');select.tabIndex=-1;select.setAttribute('aria-hidden','true');select.after(wrap);wrap.append(trigger,panel);panel.append(search,list);
+  function close(){panel.hidden=true;trigger.setAttribute('aria-expanded','false');}
+  function render(){
+   list.replaceChildren();const query=search.value.trim().toLocaleLowerCase();
+   const matches=[...select.options].filter(option=>!option.disabled&&option.textContent.toLocaleLowerCase().includes(query));
+   for(const option of matches){const item=el('button',option.textContent,'filter-dropdown-option');item.type='button';item.setAttribute('role','option');item.setAttribute('aria-selected',String(option.value===select.value));item.addEventListener('click',()=>{select.value=option.value;select.dispatchEvent(new Event('change',{bubbles:true}));refreshFilterDropdowns();close();trigger.focus();});list.append(item);}
+   if(!matches.length){const empty=el('p','No matching options','muted');empty.setAttribute('role','status');list.append(empty);}
+  }
+  function sync(){trigger.textContent=select.selectedOptions[0]?.textContent||'Choose an option';trigger.disabled=select.disabled;if(select.disabled)close();if(!panel.hidden)render();}
+  select.atlasRefresh=sync;new MutationObserver(sync).observe(select,{childList:true,subtree:true,attributes:true});select.addEventListener('change',sync);
+  trigger.addEventListener('click',()=>{if(!panel.hidden){close();return;}closeCurrent();closeCurrent=close;search.value='';panel.hidden=false;trigger.setAttribute('aria-expanded','true');render();search.focus();});
+  search.addEventListener('input',render);
+  panel.addEventListener('keydown',event=>{const items=[...list.querySelectorAll('button')],i=items.indexOf(document.activeElement);if(event.key==='Escape'){event.preventDefault();close();trigger.focus();}else if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();items[(i+(event.key==='ArrowDown'?1:-1)+items.length)%items.length]?.focus();}else if(event.key==='Enter'&&event.target===search){event.preventDefault();items[0]?.click();}});
+  wrap.addEventListener('focusout',()=>queueMicrotask(()=>{if(!wrap.contains(document.activeElement))close();}));
+  document.addEventListener('click',event=>{if(!wrap.contains(event.target))close();});
+  // Prevent the surrounding label from forwarding a click to the hidden select.
+  wrap.addEventListener('click',event=>event.stopPropagation());sync();
+ });
+ form.addEventListener('reset',()=>setTimeout(refreshFilterDropdowns,0));
+}
+setupFilterDropdowns();
