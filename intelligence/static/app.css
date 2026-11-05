@@ -10,3 +10,6 @@
 .geography-chart{max-height:360px;overflow:auto}.geography-chart .bar-row{grid-template-columns:minmax(110px,1.4fr) minmax(30px,1fr) 65px}
 
 .financial-download{max-width:100%;white-space:normal;overflow-wrap:anywhere;margin:10px 8px 0 0;line-height:1.5}
+
+/* Keep dashboard entry concise and omit all download controls. */
+#page-subtitle,#dataset-coverage,#export-csv,#export-xlsx,#india-zip-report,#india-zip-exceptions,#local-create-parts,#local-parts,#template-link,a[download]{display:none!important}
