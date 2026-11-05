@@ -115,6 +115,15 @@ def directory(db, args, export=False):
     return {'rows': rows, 'total': count,'page': page,'per_page':per_page}
 
 
+def industry_composition(db,args):
+    if not args.get('industry'):return {'rows':[],'total':0}
+    from .registered_activity import details
+    sql,params=query(args)
+    values=db.execute(f"SELECT substr(cin,2,5) AS code,COUNT(*) AS count FROM ({sql}) GROUP BY substr(cin,2,5) ORDER BY count DESC,code",params)
+    rows=[{'value':row['code'],'count':row['count'],'label':row['code']+' · '+details('U'+row['code']+'MH2000PTC000001')['registered_activity']} for row in values]
+    return {'rows':rows,'total':sum(row['count'] for row in rows)}
+
+
 def overview(db,args):
     sql, params = query(args)
     groups = {}

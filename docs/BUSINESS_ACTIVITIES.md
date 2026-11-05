@@ -19,3 +19,9 @@ A separate local queue at `instance/reports/business-activity-next-1000.json` pr
 The published enrichment applies to the shared master. Locally opened CSV/ZIP files have not been enriched; activity filters reject those modes explicitly instead of silently producing misleading results.
 
 The version-2 update changes tag sets for 236 of the 1,143 descriptions while preserving every description, master field, source URL/hash and identity confidence field. It adds wood/plywood, poultry/eggs, aquaculture/seafood, feed, agricultural-input/seed, fashion-accessory, lubricant/petroleum-product, investment/holding and unspecified-alcohol topics. Generic alcohol is not classified as confirmed alcoholic beverages. These remain research aids, not verified current operating roles.
+
+### Industry composition drill-down
+
+The dashboard supports registered industry → exact five-digit CIN activity subcategory → matching companies. Every subcategory counts companies once, retaining multiple NIC reference meanings in its label when applicable. Back buttons clear the selected code or the industry and code together; choosing a new industry clears the previous code. The Industry analysis view places both charts first.
+
+`/api/industry-composition` applies the same filters as the directory. Broad-industry counts reuse the existing per-code reference statistics; additional geographic, capital, financial or evidence filters reuse the existing filtered query. No new dataset, service or periodic job is added. Codes spanning different master industries are kept under their actual source industry rather than silently reclassified.

@@ -14,7 +14,7 @@ from openpyxl import Workbook
 from .db import connect, get_db, init_db, now
 from .ingest import ingest, KINDS
 from .sources import SOURCES, probe, download_nse, download_data_gov, SourceError
-from .analytics import directory, overview, query, research_score, DEFAULT_WEIGHTS
+from .analytics import directory, overview, industry_composition, query, research_score, DEFAULT_WEIGHTS
 
 
 def create_app(config=None):
@@ -136,6 +136,10 @@ def create_app(config=None):
     @app.get('/api/companies')
     def companies():
         return jsonify(directory(get_db(),request.args))
+
+    @app.get('/api/industry-composition')
+    def industry_stats():
+        return jsonify(industry_composition(get_db(),request.args))
 
     @app.get('/api/overview')
     def stats():
