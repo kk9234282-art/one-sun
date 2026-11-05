@@ -34,6 +34,15 @@ def query(args):
     for field in ('city','district','postal_city'):
         if str(args.get(field,'')).strip().lower()=='(not identified)':
             conditions.remove(f'lower({field})=lower(:{field})');conditions.append(f'{field} IS NULL')
+    if args.get('activity_evidence') and args['activity_evidence'] not in ('source_described','cin_checked','name_matched','needs_research'):
+        raise ValueError('Invalid business activity evidence filter')
+    if args.get('registered_activity_code'):
+        code=args['registered_activity_code']
+        if len(code)!=5 or not code.isascii() or not code.isdigit():raise ValueError('Registered activity code must contain five digits')
+        params['registered_activity_code']=code;conditions.append('substr(cin,2,5)=:registered_activity_code')
+    if any(args.get(key) for key in ('activity_tag','activity_evidence','activity_q')):
+        for key in ('activity_tag','activity_evidence','activity_q'):params[key]=args.get(key,'').strip()
+        conditions.append('activity_matches(cin,:activity_tag,:activity_evidence,:activity_q)=1')
     if args.get('q'):
         params['q'] = '%' + args['q'].replace('\\','\\\\').replace('%','\\%').replace('_','\\_') + '%'
         conditions.append("(name LIKE :q ESCAPE '\\' OR cin LIKE :q ESCAPE '\\' OR cin IN (SELECT cin FROM historical_names WHERE name LIKE :q ESCAPE '\\'))")
@@ -96,7 +105,8 @@ def directory(db, args, export=False):
     page = max(1,int(args.get('page',1)))
     per_page = min(100,max(1,int(args.get('per_page',25))))
     params.update(limit=per_page,offset=(page-1)*per_page)
-    rows = [dict(r) for r in db.execute(sql+' LIMIT :limit OFFSET :offset',params)]
+    from .business_activity import enrich
+    rows = [enrich(dict(r)) for r in db.execute(sql+' LIMIT :limit OFFSET :offset',params)]
     return {'rows': rows, 'total': count,'page': page,'per_page':per_page}
 
 

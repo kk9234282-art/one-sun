@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "source_data_commit": "bab28087f778efc69f3c47e2645e001e021b4ed3",
+  "master_records": 3236908,
+  "active_companies": 2189416,
+  "broad_categories": 20,
+  "source_description_candidates": 1154,
+  "source_described_companies": 1143,
+  "cin_checked": 255,
+  "name_matched": 888,
+  "active_needing_research": 2188273,
+  "activity_tags": {
+    "Agriculture and farming": 34,
+    "Alcoholic beverages": 4,
+    "Automobiles and components": 34,
+    "Aviation": 1,
+    "Banking": 14,
+    "Business and professional services": 31,
+    "Cement and building materials": 24,
+    "Chemicals": 68,
+    "Construction and infrastructure": 103,
+    "Defence and aerospace": 15,
+    "Education and training": 22,
+    "Electrical equipment": 34,
+    "Electricity and utilities": 27,
+    "Electronics and semiconductors": 24,
+    "Engineering and machinery": 18,
+    "Financial services and lending": 46,
+    "Food and ingredients": 62,
+    "Gems and jewellery": 23,
+    "Healthcare and diagnostics": 27,
+    "Hotels and hospitality": 37,
+    "Insurance": 19,
+    "Investment and stockbroking": 6,
+    "Media and entertainment": 28,
+    "Metals and mining": 70,
+    "Non-alcoholic beverages": 11,
+    "Oil and gas": 10,
+    "Paper and packaging": 37,
+    "Pharmaceuticals": 49,
+    "Plastics and rubber": 45,
+    "Real estate": 63,
+    "Renewable energy": 34,
+    "Retail and distribution": 76,
+    "Software and IT services": 49,
+    "Telecommunications": 18,
+    "Textiles and apparel": 93,
+    "Transport and logistics": 41,
+    "Travel and tourism": 5,
+    "Water and waste management": 9
+  },
+  "next_pilot_companies": 1000,
+  "method": "Extracted public About text from previously cached issuer pages; original page SHA-256 and NSE symbol checked. CIN-checked matches also retain previously checked annual-report identity evidence. Name-only matches remain low-confidence leads. No new web search performed.",
+  "code_policy": "CIN positions 2\u20136 preserved as registered activity code. Code system/version is not supplied; no automatic NIC-2008 or other version mapping. Registered industry remains separate from source-described operations.",
+  "description_policy": "Descriptions report what the cached source said as of retrieval, not independently verified current operations. Tags are keyword-based research aids from description text, never company-name guesses.",
+  "rejected": [
+    {
+      "cin": "L27109GJ1991PLC015331",
+      "reason": "No usable public About description"
+    },
+    {
+      "cin": "L70101MH2003PLC141547",
+      "reason": "No usable public About description"
+    },
+    {
+      "cin": "U27100GJ2008PLC054437",
+      "reason": "No usable public About description"
+    },
+    {
+      "cin": "U27109HR1974PLC007126",
+      "reason": "No usable public About description"
+    },
+    {
+      "cin": "U28110UP2024PLC212958",
+      "reason": "No usable public About description"
+    },
+    {
+      "cin": "U36996GJ2022PLC131404",
+      "reason": "No usable public About description"
+    },
+    {
+      "cin": "U49300GJ2024SGC153672",
+      "reason": "No usable public About description"
+    },
+    {
+      "cin": "U51909RJ2019PLC065892",
+      "reason": "No usable public About description"
+    },
+    {
+      "cin": "U67120GJ1994PLC023257",
+      "reason": "No usable public About description"
+    },
+    {
+      "cin": "U72100GJ2011PLC063953",
+      "reason": "No usable public About description"
+    },
+    {
+      "cin": "U72200KA1999PLC025692",
+      "reason": "No usable public About description"
+    }
+  ]
+}

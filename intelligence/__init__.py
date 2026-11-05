@@ -146,6 +146,8 @@ def create_app(config=None):
         db=get_db();status=request.args.get('status','');state=request.args.get('state','');district=request.args.get('city','')
         values={field:[row[0] for row in db.execute(f"SELECT DISTINCT {field} FROM companies WHERE {field} IS NOT NULL AND (?='' OR status=?) ORDER BY {field}",(status,status))] for field in ('state','industry','class','status','district','nic')}
         cities=[row[0] for row in db.execute("SELECT DISTINCT pin_district(postal_code,state) AS city FROM companies WHERE state=? AND (?='' OR status=?) ORDER BY city",(state,status,status))] if state else []
+        from .business_activity import dataset
+        values['activity_tags']=sorted(dataset().get('report',{}).get('activity_tags',{}))
         values.update(city=[value for value in cities if value],city_unknown=int(None in cities))
         for field in ('roc','postal_code'):
             values[field]=[row[0] for row in db.execute(f"SELECT DISTINCT {field} FROM companies WHERE state=? AND {field} IS NOT NULL AND (?='' OR status=?) ORDER BY {field}",(state,status,status))] if state else []

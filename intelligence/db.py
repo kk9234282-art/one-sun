@@ -14,6 +14,8 @@ def connect(path):
     from .locality import derive,area
     db.create_function('pin_district',2,derive,deterministic=True)
     db.create_function('pin_area',2,area,deterministic=True)
+    from .business_activity import matches
+    db.create_function('activity_matches',4,matches,deterministic=True)
     db.execute('PRAGMA foreign_keys=ON')
     db.execute('PRAGMA journal_mode=WAL')
     return db

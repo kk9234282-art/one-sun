@@ -142,3 +142,23 @@ assert.ok(!requested.slice(exactStart).some(url=>url.includes('/index/')),'Exact
 console.log('Exact CIN lookup/export use profile buckets and preserve filters and pagination.');
 
 assert.equal((await request('/api/overview')).summary.financial_coverage,1,'Unverified ranges must not increase imported financial coverage.');
+
+// Activity filtering uses the bounded enrichment index and preserves ordinary filters.
+const sample={cin:raw[0][0],description:'Manufactures alcoholic beverages and beer.',tags:['Alcoholic beverages'],identity_status:'cin_checked',source_url:'https://www.screener.in/company/SYNTHETIC/',observed_on:'2026-11-01',identity_source_url:'https://example.test/annual.pdf',master:Object.fromEntries(catalog.full_fields.map((key,i)=>[key,listedRows[0][i]]))};
+const activity={schema_version:1,source_data_commit:catalog.data_commit,records:[sample],report:{source_described_companies:1,cin_checked:1,name_matched:0}};
+catalog.business_activities={...asset('activity.gz',[activity]),path:'/national/activity.gz',schema_version:1,source_data_commit:catalog.data_commit,tags:['Alcoholic beverages']};
+files.set('https://fixture.invalid/national/catalog.json',Buffer.from(JSON.stringify(catalog)));
+await call('init',{url:'/national/catalog.json'});requested.length=0;
+let activityResult=await request('/api/companies?activity_tag=Alcoholic%20beverages&status=Active');
+assert.equal(activityResult.total,1);assert.equal(activityResult.rows[0].business_description,sample.description);
+assert.equal(activityResult.rows[0].registered_activity_code,'12345');
+assert.equal((await request('/api/companies?activity_q=beer&activity_evidence=cin_checked')).total,1);
+assert.equal((await request('/api/companies?activity_q=beer&state=Gujarat')).total,0);
+assert.equal((await request('/api/companies?activity_q=beer&activity_evidence=name_matched')).total,0);
+assert.equal((await request('/api/overview?activity_q=beer')).summary.companies,1);
+assert.ok(!requested.some(url=>url.includes('/index/')),'Business-description searches must not scan national name chunks.');
+assert.equal((await request('/api/companies?activity_evidence=needs_research')).total,3);
+assert.equal((await request('/api/companies?registered_activity_code=12345')).total,4);
+await assert.rejects(()=>request('/api/companies?registered_activity_code=12'),/five digits/);
+await assert.rejects(()=>request('/api/companies?activity_evidence=verified'),/evidence/);
+console.log('Business activities: bounded search, tags, evidence levels, registered codes and combined filters passed.');
