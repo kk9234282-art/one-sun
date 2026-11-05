@@ -173,6 +173,11 @@ def create_app(config=None):
             result[table] = [dict(r) for r in db.execute(f'SELECT * FROM {table} WHERE cin=? ORDER BY rowid DESC LIMIT 200',(cin,))]
         return jsonify(result)
 
+    @app.get('/api/review-queue')
+    def review_queue():
+        from .review_queue import query
+        return jsonify(query(get_db(),request.args))
+
     @app.get('/api/activity-reviews')
     def reviewed_companies():
         rows=get_db().execute("SELECT r.cin,c.name,r.version,r.payload,r.saved_at FROM activity_reviews r JOIN companies c ON c.cin=r.cin WHERE r.version=(SELECT MAX(x.version) FROM activity_reviews x WHERE x.cin=r.cin) ORDER BY r.saved_at DESC LIMIT 200").fetchall()

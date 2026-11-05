@@ -1,0 +1,10 @@
+{
+  "total": 439623,
+  "with_source_description": 246,
+  "queue_chunks": 880,
+  "membership_chunks": 128,
+  "manifest_bytes": 53765,
+  "total_bytes": 12964107,
+  "default_order": "Source description available first, then paid-up capital descending; unknown capital last; CIN tie-breaker",
+  "note": "Pending/checked progress comes from latest manual-review status, not from source-description availability."
+}

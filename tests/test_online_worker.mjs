@@ -41,7 +41,8 @@ files.set('/static/pin-districts.json',await readFile(new URL('../intelligence/s
 const waiting=new Map(),requested=[];let sequence=0;
 const context={URL,URLSearchParams,TextEncoder,TextDecoder,Response,crypto:webcrypto,location:{origin:'https://fixture.invalid'},fetch:async url=>{requested.push(String(url));const body=files.get(String(url));return new Response(body||'',{status:body?200:404});},postMessage:message=>{if(message.type==='query-progress')return;const waiter=waiting.get(message.id);waiting.delete(message.id);if(message.type==='failure')waiter.reject(Error(message.message));else waiter.resolve(message.value);}};
 context.self=context;vm.createContext(context);
-context.importScripts=(...paths)=>{for(const path of paths)vm.runInContext(path==='locality.js'?locality:path==='financials.js'?financialCode:vendor,context);};
+context.importScripts=(...paths)=>{for(const path of paths)vm.runInContext(path==='locality.js'?locality:path==='financials.js'?financialCode:path==='queue-index.js'?queueCode:vendor,context);};
+const queueCode=await readFile(new URL('../intelligence/static/queue-index.js',import.meta.url),'utf8');
 const financialCode=await readFile(new URL('../intelligence/static/financials.js',import.meta.url),'utf8');
 const locality=await readFile(new URL('../intelligence/static/locality.js',import.meta.url),'utf8');
 const vendor=await readFile(new URL('../intelligence/static/vendor/fflate.js',import.meta.url),'utf8');
@@ -179,3 +180,21 @@ assert.equal((await request('/api/companies?registered_activity_code=99999')).to
 assert.equal((await request('/api/companies?activity_evidence=needs_research&registered_activity_status=reference_candidate')).total,3);
 await assert.rejects(()=>request('/api/companies?registered_activity_status=verified'),/status/);
 console.log('CIN reference candidates: full coverage, source separation, pagination, known totals and filtering passed.');
+
+// Queue reads only its small pages/membership, not the national company index.
+const queueRefs={...codeRow,status:'multiple_candidates',candidates:[...codeRow.candidates,{edition:'2008',reference_code:'12345',level:5,description:'Other synthetic activity'}]};
+catalog.cin_activities={...asset('queue-cin.gz',[{...cinData,codes:{'12345':queueRefs}}]),path:'/national/queue-cin.gz',schema_version:1,source_data_commit:catalog.data_commit,companies:4};
+const qp0=asset('queue/page0.gz',[[raw[0][0],'ALPHA ONE','Maharashtra','Testing',0]]),qp1=asset('queue/page1.gz',[[raw[3][0],'GAMMA FOUR','Gujarat','Testing',100000000]]),qm=asset('queue/members.gz',[[raw[0][0],0],[raw[3][0],1]]);
+for(const d of [qp0,qp1,qm])d.path='/national/'+d.path;
+const queueMeta={schema_version:1,source_data_commit:catalog.data_commit,total:2,described:1,chunk_size:1,bucket_count:1,chunks:[qp0,qp1],membership:[qm],capital_placements:[{rank:1,priority_index:0,base_before:1}]};
+catalog.review_queue={...asset('queue/manifest.gz',[queueMeta]),path:'/national/queue/manifest.gz',schema_version:1,source_data_commit:catalog.data_commit,total:2};
+files.set('https://fixture.invalid/national/catalog.json',Buffer.from(JSON.stringify(catalog)));await call('init',{url:'/national/catalog.json'});requested.length=0;
+const qfirst=await request('/api/review-queue?per_page=1');assert.equal(qfirst.rows[0].cin,raw[0][0]);assert.equal(qfirst.summary.checked,0);assert.equal(qfirst.summary.source_described,1);
+assert.equal((await request('/api/review-queue?order=capital&per_page=1')).rows[0].cin,raw[3][0]);
+const pendingQueue=await request('/api/review-queue?checked='+raw[0][0]+','+raw[1][0]);assert.equal(pendingQueue.rows[0].cin,raw[3][0]);assert.equal(pendingQueue.summary.checked,1);assert.equal(pendingQueue.summary.pending,1);
+assert.equal((await request('/api/review-queue?mode=checked&checked='+raw[0][0])).rows[0].cin,raw[0][0]);
+assert.equal((await request('/api/review-queue?per_page=1&page=99')).page,2);
+assert.ok(!requested.some(url=>url.includes('/index/')),'Queue browsing must not scan the national index.');
+await assert.rejects(()=>request('/api/review-queue?mode=verified'),/mode/);
+await assert.rejects(()=>request('/api/review-queue?checked=invalid'),/review IDs/);
+console.log('Review queue: bounded pages, source/capital priority, exact progress and unrelated-review exclusion passed.');

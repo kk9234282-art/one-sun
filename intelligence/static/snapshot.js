@@ -112,6 +112,7 @@
     async request(path, options={}) {
       if(window.AtlasIndia?.active)return window.AtlasIndia.request(path,options);
       if(window.AtlasOnline?.enabled&&!localOverride)return window.AtlasOnline.request(path,options);
+      if(new URL(path,'https://local.invalid').pathname==='/api/review-queue')throw Error('The review queue uses the published dataset. Restore published data first.');
       const activityParams=new URL(path,'https://local.invalid').searchParams;if(['activity_tag','activity_evidence','activity_q','registered_activity_code','registered_activity_q','registered_activity_status'].some(key=>activityParams.get(key)))throw Error('Business activity enrichment applies to the published dataset. Restore published data to use these filters.');
       if (options.method && options.method !== 'GET') throw new Error('This public deployment is read-only. Use the full application to import or update data.');
       await ready;await window.AtlasLocality.ready;
