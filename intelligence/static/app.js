@@ -44,11 +44,12 @@ $('#close-profile').addEventListener('click',()=>$('#profile').close());
 async function cityOptions(){
   const state=$('[name=state]').value,city=$('[name=city]'),pin=$('[name=postal_code]'),area=$('[name=postal_city]');
   for(const input of [city,pin,area]){if(input.dataset.state!==state){input.value='';input.dataset.state=state;}input.disabled=!state;}
-  if(area.dataset.district!==city.value){area.value='';area.dataset.district=city.value;}area.placeholder=state?'Type or choose a city / area':'Choose a state first';
-  city.placeholder=state?'Type or choose a district':'Choose a state first';pin.placeholder=state?'6-digit PIN':'Choose a state first';
-  if(!state){$('#city-options').replaceChildren();$('#postal-code-options').replaceChildren();$('#postal-city-options').replaceChildren();return;}
+  if(area.dataset.district!==city.value){area.value='';area.dataset.district=city.value;}
+  const fields=[['city',city,'All districts'],['postal_code',pin,'All PIN codes'],['postal_city',area,'All cities / postal areas']];
+  function fill(select,values,label,unknown=false){const previous=select.value;select.replaceChildren();const all=el('option',label);all.value='';select.append(all);for(const value of values){const option=el('option',value);option.value=value;select.append(option);}if(unknown){const option=el('option','Not identified');option.value='(Not identified)';select.append(option);}select.value=[...select.options].some(option=>option.value===previous)?previous:'';}
+  if(!state){for(const [,select]of fields)fill(select,[],'Choose a state first');return;}
   const selectedDistrict=city.value,data=await api('/api/options?'+new URLSearchParams({state,city:selectedDistrict,status:'Active'}));if($('[name=state]').value!==state||city.value!==selectedDistrict)return;
-  for(const [field,target]of [['city','#city-options'],['postal_code','#postal-code-options'],['postal_city','#postal-city-options']]){const choices=$(target);choices.replaceChildren();for(const value of data[field]||[]){const option=el('option');option.value=value;choices.append(option);}if((field==='city'&&data.city_unknown)||(field==='postal_city'&&data.postal_city_unknown)){const option=el('option');option.value='(Not identified)';choices.append(option);}}
+  for(const [field,select,label]of fields)fill(select,data[field]||[],label,(field==='city'&&data.city_unknown)||(field==='postal_city'&&data.postal_city_unknown));
 }
 async function options(){const data=await api('/api/options?status=Active');for(const field of ['state','industry']){const select=$(`[name="${field}"]`),old=select.value;while(select.options.length>1)select.remove(1);for(const value of data[field]){const option=el('option',value);option.value=value;select.append(option);}select.value=old;}await cityOptions();}
 $('[name=state]').addEventListener('change',()=>cityOptions().catch(error));
