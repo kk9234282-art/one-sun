@@ -1,0 +1,16 @@
+{
+  "base_multiple_candidate_companies": 439623,
+  "audit_flagged_companies": 9,
+  "total_queue_companies": 439632,
+  "source_described": 255,
+  "overlay_bytes": 5894,
+  "base_queue_assets_rewritten": 0,
+  "primary_checks_completed": 0,
+  "tag_rule_version": 2,
+  "available_tags": 47,
+  "retagged_descriptions": 236,
+  "business_descriptions_preserved": 1143,
+  "source_identity_and_master_fields_unchanged": true,
+  "description_asset_bytes": 271960,
+  "description_asset_growth_bytes": 832
+}

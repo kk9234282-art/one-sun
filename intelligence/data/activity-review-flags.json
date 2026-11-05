@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "method": "Qualitative 50-company audit against cached source descriptions; not a fresh primary-source check or a confirmed correction.",
+  "flags": [
+    {
+      "cin": "L01403AS1999PLC005741",
+      "company_name": "BARAK VALLEY CEMENTS LIMITED",
+      "flag_type": "potential_activity_mismatch",
+      "audit_date": "2026-11-05",
+      "reason": "The only candidate is crop/horticultural services, whereas the source says cement manufacturing. An exact registration-code match does not establish the current business.",
+      "next_check": "Confirm cement operations against the current company annual report; flag this single-candidate case for review.",
+      "source_url": "https://www.screener.in/company/BVCL/",
+      "source_sha256": "6a5cdddd4e772da592f9b15c70727fd5e96b6ebbf53dfa4e989eff63d53ebaed",
+      "source_observed_on": "2026-11-01",
+      "identity_status": "cin_checked",
+      "status": "needs_primary_evidence"
+    },
+    {
+      "cin": "L01409WB1982PLC034590",
+      "company_name": "IFB AGRO INDUSTRIES LTD.",
+      "flag_type": "potential_activity_mismatch",
+      "audit_date": "2026-11-05",
+      "reason": "Agricultural/animal-husbandry services do not explain the source's alcohol and marine-product manufacturing. The word Alcohol alone does not establish potable liquor versus industrial alcohol.",
+      "next_check": "Check primary product/segment disclosures; add marine/alcohol categories only at the specificity supported by the evidence.",
+      "source_url": "https://www.screener.in/company/IFBAGRO/",
+      "source_sha256": "5909882988d4c90a89165bd71e885955dab99e3a5811575883ec27236a8a2acf",
+      "source_observed_on": "2026-11-01",
+      "identity_status": "cin_checked",
+      "status": "needs_primary_evidence"
+    },
+    {
+      "cin": "L24111UR1985PLC015063",
+      "company_name": "ESTER INDUSTRIES LIMITED",
+      "flag_type": "potential_activity_mismatch",
+      "audit_date": "2026-11-05",
+      "reason": "The exact reference says industrial gases; the source instead says polyester film and engineering plastics. Sharing a broad chemicals family does not resolve this product mismatch.",
+      "next_check": "Confirm film/polymer products in primary disclosures and flag this single-candidate case.",
+      "source_url": "https://www.screener.in/company/ESTER/",
+      "source_sha256": "5de24389d803dab22ba5930cd4d8b9180bfde7219e906975ab6f1acb21f4771c",
+      "source_observed_on": "2026-11-01",
+      "identity_status": "cin_checked",
+      "status": "needs_primary_evidence"
+    },
+    {
+      "cin": "L20103WB1980PLC032872",
+      "company_name": "GPT INFRAPROJECTS LIMITED",
+      "flag_type": "potential_activity_mismatch",
+      "audit_date": "2026-11-05",
+      "reason": "The sleeper product noun overlaps, but the reference sits within wood manufacturing while the source says concrete sleepers and civil infrastructure. The apparent match hides a material and main-business difference.",
+      "next_check": "Review both concrete railway products and construction in primary disclosures; flag the single-candidate/material-scope issue.",
+      "source_url": "https://www.screener.in/company/GPTINFRA/",
+      "source_sha256": "6079cd3b418d27c687b0a0a373726e97da0a55905ebdb6454f915c006ada38d3",
+      "source_observed_on": "2026-11-01",
+      "identity_status": "cin_checked",
+      "status": "needs_primary_evidence"
+    },
+    {
+      "cin": "L51909MP2007PLC066484",
+      "company_name": "BRAND CONCEPTS LIMITED",
+      "flag_type": "potential_activity_mismatch",
+      "audit_date": "2026-11-05",
+      "reason": "Other wholesale does not establish the source's stated bag/backpack manufacturing and fashion-accessory business. Trading and manufacturing could coexist, so this is a review signal rather than proof of an error.",
+      "next_check": "Check product/manufacturing versus distribution roles and record the supported fashion/accessory activities.",
+      "source_url": "https://www.screener.in/company/BCONCEPTS/",
+      "source_sha256": "b035fb51c0360bdde063b2b5f7efaf2cc0086cff87246b8b795e8f9e0a5b3012",
+      "source_observed_on": "2026-11-01",
+      "identity_status": "cin_checked",
+      "status": "needs_primary_evidence"
+    },
+    {
+      "cin": "L51909TN1955PLC002431",
+      "company_name": "SICAL LOGISTICS LIMITED.",
+      "flag_type": "potential_activity_mismatch",
+      "audit_date": "2026-11-05",
+      "reason": "Other wholesale does not explain the stated integrated-logistics business. The source supports logistics but does not establish whether any wholesale activity still exists.",
+      "next_check": "Verify current logistics segments and distinguish business changes from an invalid registration record.",
+      "source_url": "https://www.screener.in/company/SICALLOG/",
+      "source_sha256": "ad2540cec56a310a54021f193b16b426ebcf3e62906a0b07a84ca3a88744e700",
+      "source_observed_on": "2026-11-01",
+      "identity_status": "cin_checked",
+      "status": "needs_primary_evidence"
+    },
+    {
+      "cin": "L51909WB1940PLC010070",
+      "company_name": "SOMA TEXTILES & INDUSTRIES LTD",
+      "flag_type": "potential_activity_mismatch",
+      "audit_date": "2026-11-05",
+      "reason": "The source explicitly claims a FY26 switch to highway construction after takeover, while the code remains wholesale. This is a possible business-change case, not proof that the historical CIN is wrong.",
+      "next_check": "Confirm the acquisition/activity-change claim in dated primary filings before adopting a current-business correction.",
+      "source_url": "https://www.screener.in/company/SOMATEX/",
+      "source_sha256": "17746efa5c4d11bd9df6499471a23de79363fc87cdcbe626dc01ba82e31a8b76",
+      "source_observed_on": "2026-11-01",
+      "identity_status": "cin_checked",
+      "status": "needs_primary_evidence"
+    },
+    {
+      "cin": "L51216WB1992PLC055629",
+      "company_name": "KAUSHALYA INFRASTRUCTURE DEVELOPMENT CORPORATION LTD",
+      "flag_type": "potential_activity_mismatch",
+      "audit_date": "2026-11-05",
+      "reason": "A hides/skins/leather-wholesale reference is unrelated to the stated construction-contract and hotel business.",
+      "next_check": "Check dated primary activity disclosures and flag this single-candidate mismatch for review.",
+      "source_url": "https://www.screener.in/company/KAUSHALYA/",
+      "source_sha256": "3fc6e417ac4f7a6098da53086bf19f15fa59c1027a70c263bec8f5e74d35341d",
+      "source_observed_on": "2026-11-01",
+      "identity_status": "cin_checked",
+      "status": "needs_primary_evidence"
+    },
+    {
+      "cin": "L74110DL2011PLC221111",
+      "company_name": "GVP INFOTECH LIMITED",
+      "flag_type": "potential_activity_mismatch",
+      "audit_date": "2026-11-05",
+      "reason": "The only candidate says legal activities, whereas the source says IT services. A single exact candidate can still be misleading as an operating-business label.",
+      "next_check": "Verify current IT service lines and include this single-candidate case in a future mismatch queue.",
+      "source_url": "https://www.screener.in/company/GVPTECH/",
+      "source_sha256": "20226e087b4a2708fdf22c477e0c1ceaddca059ff71ee7a9d95a8811bff9c578",
+      "source_observed_on": "2026-11-01",
+      "identity_status": "cin_checked",
+      "status": "needs_primary_evidence"
+    }
+  ]
+}

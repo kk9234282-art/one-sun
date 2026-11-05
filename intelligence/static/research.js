@@ -25,6 +25,7 @@
   const numeric=[['min_capital','paid_up_capital','Paid-up capital'],['min_revenue','revenue_inr','Revenue'],['min_revenue_growth','revenue_growth','Revenue growth'],['min_profit_growth','profit_growth','Profit growth']];for(const [key,field,title]of numeric)if(params.get(key))lines.push(`${title}: ${row[field]} meets the selected minimum ${params.get(key)}.`);
   for(const field of ['incorporated','as_of'])if(params.get(field+'_from')||params.get(field+'_to'))lines.push(`${field==='incorporated'?'Incorporation date':'Source date'}: ${row[field]} is within the selected range.`);
   if(params.get('nic'))lines.push('Source NIC field: '+row.nic+'.');if(params.get('positive_profit'))lines.push('The selected financial statement reports positive net profit.');if(params.get('min_age'))lines.push('The source incorporation date meets the selected minimum company age.');
+  if(row.activity_review_flag)lines.push('Audit flag: '+row.activity_review_flag.reason+' Primary evidence is still needed; this is not a confirmed correction.');
   lines.push('Manual reviews are stored separately and do not change these filter matches.');return lines;
  }
  function explanation(row,params){const details=node('details',undefined,'match-explanation'),summary=node('summary','Why this matches');details.append(summary);let rendered=false;details.addEventListener('toggle',()=>{if(!details.open||rendered)return;rendered=true;const list=node('ul');for(const text of explain(row,params))list.append(node('li',text));details.append(list);});return details;}

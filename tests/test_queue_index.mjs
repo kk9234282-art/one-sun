@@ -18,3 +18,14 @@ for(let sample=0;sample<70;sample++){
 }
 assert.equal(index.bucket('U15511MH2010PTC000001',128),77);
 console.log('Queue sparse ordering, pending/checked pagination, exact progress and page clamping passed.');
+
+const base={total:4,described:2,capital_placements:[{rank:1,priority_index:0,base_before:1},{rank:2,priority_index:1,base_before:1}]};
+const overlay={base_total:4,base_described:2,added:1,sources:[{kind:'flag',cin:'flag'},{kind:'base',index:0},{kind:'base',index:1}],capital_placements:[{rank:1,priority_index:0,base_before:1},{rank:2,priority_index:1,base_before:1},{rank:3,priority_index:2,base_before:1}]};
+const expanded=index.expand(base,overlay),capital=[3,0,1,2,4],reviewed=[0,3];
+assert.equal(expanded.total,5);assert.equal(expanded.described,3);assert.equal(index.fromBase(0,expanded),1);assert.equal(index.fromBase(2,expanded),3);assert.equal(index.fromBase(-1,expanded),-1);assert.equal(index.toBase(0,expanded).kind,'flag');assert.equal(index.toBase(4,expanded).index,3);
+for(const order of ['priority','capital'])for(const reason of ['all','audit_flags','multiple_candidates'])for(const mode of ['pending','checked','all']){
+ const ordered=order==='priority'?[0,1,2,3,4]:capital,expected=ordered.filter(i=>(reason==='all'||(i===0)===(reason==='audit_flags'))&&(mode==='all'||reviewed.includes(i)===(mode==='checked')));
+ for(let page=1;page<=4;page++){const result=index.positions(expanded,reviewed,mode,order,page,2,reason);assert.deepEqual([...result.indices],expected.slice((result.page-1)*2,result.page*2));assert.equal(result.total,expected.length);assert.equal(result.summary.audit_flagged,1);assert.equal(result.summary.total,5);assert.equal(result.summary.checked,2);}
+}
+assert.throws(()=>index.expand({...base,total:99},overlay),/overlay/);
+console.log('Sparse audit overlays preserve old pages, capital ordering, reason filters and review progress.');

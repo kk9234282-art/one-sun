@@ -198,3 +198,24 @@ assert.ok(!requested.some(url=>url.includes('/index/')),'Queue browsing must not
 await assert.rejects(()=>request('/api/review-queue?mode=verified'),/mode/);
 await assert.rejects(()=>request('/api/review-queue?checked=invalid'),/review IDs/);
 console.log('Review queue: bounded pages, source/capital priority, exact progress and unrelated-review exclusion passed.');
+
+// A tiny overlay adds a single-candidate audit case without rewriting queue pages.
+const flagCin='U15511MH2010PTC999999';
+const flagSource={...sample,cin:flagCin,description:'Provides software development services.',tags:['Software and IT services'],master:{...sample.master,cin:flagCin,name:'SYNTHETIC AUDIT CASE',paid_up_capital:50000000}};
+catalog.business_activities={...asset('flag-activities.gz',[{...activity,records:[sample,flagSource]}]),path:'/national/flag-activities.gz',schema_version:1,source_data_commit:catalog.data_commit,tags:['Software and IT services','Alcoholic beverages']};
+catalog.cin_activities={...asset('flag-cin.gz',[{...cinData,codes:{'12345':queueRefs,'15511':{...codeRow,status:'reference_candidate',candidates:[{edition:'2004',reference_code:'15511',level:5,description:'Manufacture of country liquor'}]}}}]),path:'/national/flag-cin.gz',schema_version:1,source_data_commit:catalog.data_commit};
+const auditFlag={cin:flagCin,status:'needs_primary_evidence',reason:'Synthetic audit found a possible mismatch; not a correction.',next_check:'Check a primary report.',queue_row:[flagCin,'SYNTHETIC AUDIT CASE','Maharashtra','Testing',50000000]};
+const flagOverlay={base_total:2,base_described:1,base_manifest_sha256:catalog.review_queue.sha256,added:1,sources:[{kind:'flag',cin:flagCin},{kind:'base',index:0}],capital_placements:[{rank:1,priority_index:0,base_before:1},{rank:2,priority_index:1,base_before:1}]};
+catalog.activity_review_flags={...asset('audit-flags.gz',[{schema_version:1,source_data_commit:catalog.data_commit,flags:[auditFlag],queue_overlay:flagOverlay}]),path:'/national/audit-flags.gz',schema_version:1,source_data_commit:catalog.data_commit,companies:1};
+files.set('https://fixture.invalid/national/catalog.json',Buffer.from(JSON.stringify(catalog)));await call('init',{url:'/national/catalog.json'});requested.length=0;
+const expandedQueue=await request('/api/review-queue');assert.equal(expandedQueue.summary.total,3);assert.equal(expandedQueue.summary.audit_flagged,1);assert.equal(expandedQueue.rows[0].cin,flagCin);
+const auditOnly=await request('/api/review-queue?reason=audit_flags');assert.equal(auditOnly.total,1);assert.equal(auditOnly.rows[0].registered_activity_status,'reference_candidate');assert.equal(auditOnly.rows[0].activity_review_flag.status,'needs_primary_evidence');
+assert.equal((await request('/api/review-queue?reason=multiple_candidates')).total,2);
+const memberReadsBefore=requested.filter(url=>url.includes('queue/members')).length;
+const auditChecked=await request('/api/review-queue?reason=audit_flags&mode=checked&checked='+flagCin);assert.equal(auditChecked.total,1);assert.equal(auditChecked.summary.checked,1);assert.equal(requested.filter(url=>url.includes('queue/members')).length,memberReadsBefore,'Audit-only review progress uses the overlay without membership downloads.');
+const auditPending=await request('/api/review-queue?checked='+flagCin+','+raw[0][0]);assert.equal(auditPending.total,1);assert.equal(auditPending.rows[0].cin,raw[3][0]);
+assert.equal((await request('/api/review-queue?order=capital')).rows[0].cin,raw[3][0]);
+assert.equal((await request('/api/company/'+flagCin)).company.activity_review_flag.cin,flagCin);
+assert.ok(!requested.some(url=>url.includes('/index/')),'Audit overlay must not scan national indices.');
+
+console.log('Audit overlay: single-candidate flags, reason views, unchanged base pages, capital order and precise review progress passed.');

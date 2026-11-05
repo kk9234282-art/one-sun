@@ -59,3 +59,42 @@ def test_flask_directory_and_totals_share_activity_evidence(tmp_path,monkeypatch
         assert directory(db,{'registered_activity_status':'unmapped'})['total']==0
         assert directory(db,{'registered_activity_status':'multiple_candidates'})['total']==1
         with pytest.raises(ValueError):directory(db,{'registered_activity_code':'155'})
+
+
+@pytest.mark.parametrize('text,expected',[
+    ('Manufactures decorative laminates and plywood.','Wood and plywood products'),
+    ('Produces eggs and manufactures egg products.','Poultry and egg products'),
+    ('Processes shrimps from aquaculture and produces shrimp feeds.','Aquaculture and seafood'),
+    ('Manufactures shrimp feeds.','Animal feed'),
+    ('Provides crop nutrition, crop protection and soil health management products.','Agricultural inputs and seeds'),
+    ('The company is in the grain seed selling business.','Agricultural inputs and seeds'),
+    ('The company offers premium western wear brands.','Textiles and apparel'),
+    ('Manufactures LED lights and undertakes electrical projects.','Electrical equipment'),
+    ('Manufactures bags, backpacks and fashion accessories.','Fashion accessories and bags'),
+    ('Operates as an investment company.','Investment and holding companies'),
+    ('Manufactures automotive lubricants and rubber process oils.','Lubricants and petroleum products'),
+])
+def test_explicit_product_and_service_gaps_are_covered(text,expected):
+    assert expected in activity.tags_for(text)
+
+
+def test_material_customer_and_name_context_does_not_invent_manufacture():
+    tags=activity.tags_for('Harrisons Malayalam Ltd is engaged in plantations of tea and rubber.')
+    assert 'Agriculture and farming' in tags
+    assert 'Non-alcoholic beverages' not in tags and 'Plastics and rubber' not in tags
+    tags=activity.tags_for('GP Petroleums Ltd manufactures Automotive Lubricants and Rubber Process Oils and trades base oil.')
+    assert 'Lubricants and petroleum products' in tags
+    assert 'Automobiles and components' not in tags and 'Plastics and rubber' not in tags
+    assert 'Wood and plywood products' not in activity.tags_for('Wood Products Limited provides software development services.')
+    assert 'Wood and plywood products' not in activity.tags_for('Manufactures resins for the plywood industry.')
+    assert 'Fashion accessories and bags' not in activity.tags_for('Manufactures industrial woven bags.')
+    assert 'Automobiles and components' in activity.tags_for('Makes piston rings and differential gears for automotive engines.')
+    tags=activity.tags_for('Operates rubber plantations and manufactures rubber tyres.')
+    assert 'Plastics and rubber' in tags and 'Agriculture and farming' in tags
+
+
+def test_unspecified_alcohol_does_not_become_confirmed_alcoholic_beverages():
+    tags=activity.tags_for('IFB Agro Ltd manufactures Alcohol and Marine products.')
+    assert 'Alcohol products (type unspecified)' in tags and 'Aquaculture and seafood' in tags
+    assert 'Alcoholic beverages' not in tags
+    assert 'Alcohol products (type unspecified)' not in activity.tags_for('Manufactures industrial alcohol and ethanol.')

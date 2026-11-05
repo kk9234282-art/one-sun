@@ -23,7 +23,7 @@ def app(tmp_path,monkeypatch):
 def test_queue_prioritizes_source_then_capital_without_treating_source_as_review(app):
     with app.app_context():
         first=query(get_db(),{});assert [r['cin'] for r in first['rows']]==[A,B,C,F]
-        assert first['summary']=={'total':4,'checked':0,'pending':4,'source_described':1}
+        assert first['summary']=={'total':4,'checked':0,'pending':4,'source_described':1,'audit_flagged':0}
         assert [r['cin'] for r in query(get_db(),{'order':'capital'})['rows']]==[B,C,A,F]
         assert query(get_db(),{'per_page':'2','page':'99'})['page']==2
         with pytest.raises(ValueError):query(get_db(),{'mode':'verified'})
@@ -48,3 +48,31 @@ def test_rebuild_cleanup_removes_only_stale_generated_assets(tmp_path):
     for p in (stale,current,other):p.write_bytes(b'test')
     cleanup(tmp_path,{current.name})
     assert not stale.exists() and current.exists() and other.exists()
+
+
+def test_audit_flags_include_single_candidate_cases_without_correction_or_review(app,monkeypatch):
+    from intelligence import review_flags
+    sample={'cin':E,'reason':'Synthetic potential mismatch; primary evidence needed.','next_check':'Check the primary report.','status':'needs_primary_evidence'}
+    monkeypatch.setattr(review_flags,'flags',lambda:{E:sample})
+    with app.app_context():
+        all_rows=query(get_db(),{'mode':'all'});assert all_rows['summary']['total']==5 and all_rows['summary']['audit_flagged']==1
+        assert all_rows['summary']['checked']==0
+        flagged=query(get_db(),{'reason':'audit_flags'});assert flagged['total']==1 and flagged['rows'][0]['cin']==E
+        assert flagged['rows'][0]['registered_activity_status']=='reference_candidate'
+        assert flagged['rows'][0]['activity_review_flag']['status']=='needs_primary_evidence'
+        assert query(get_db(),{'reason':'multiple_candidates'})['total']==4
+        assert get_db().execute('SELECT COUNT(*) FROM activity_reviews').fetchone()[0]==0
+
+
+def test_shared_reviewed_flag_progress_uses_latest_manual_status(app,monkeypatch):
+    from intelligence import review_flags
+    monkeypatch.setattr(review_flags,'flags',lambda:{E:{'cin':E,'reason':'Synthetic potential mismatch','status':'needs_primary_evidence'}})
+    client=app.test_client()
+    with client.session_transaction() as session:session.update(user_id=1,csrf='queue-csrf')
+    value={'description':'Synthetic company business description needs documentary review.','tags':['Synthetic'],'source_url':'https://example.test/source','source_kind':'other','source_date':'2025-01-01','review_date':'2026-01-01','source_excerpt':'Synthetic supporting source excerpt for a test review.','identity_basis':'name_only','status':'reviewed','expected_version':0}
+    assert client.post(f'/api/company/{E}/activity-reviews',json=value,headers={'X-CSRF-Token':'queue-csrf'}).status_code==201
+    assert client.get('/api/review-queue?reason=audit_flags').json['total']==0
+    checked=client.get('/api/review-queue?reason=audit_flags&mode=checked').json
+    assert checked['total']==1 and checked['rows'][0]['activity_review_flag']['status']=='needs_primary_evidence'
+    assert checked['summary']['checked']==1
+    assert client.get('/api/review-queue?reason=multiple_candidates').json['total']==4
