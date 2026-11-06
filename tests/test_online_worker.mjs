@@ -38,8 +38,8 @@ const active={schema_version:1,source_data_commit:catalog.data_commit,status:'Ac
 catalog.active_summary={...asset('active-summary.gz',[active]),path:'/national/active-summary.gz',source_data_commit:catalog.data_commit,companies:3};
 files.set('https://fixture.invalid/national/catalog.json',Buffer.from(JSON.stringify(catalog)));
 files.set('/static/pin-districts.json',await readFile(new URL('../intelligence/static/pin-districts.json',import.meta.url)));
-const waiting=new Map(),requested=[];let sequence=0;
-const context={URL,URLSearchParams,TextEncoder,TextDecoder,Response,crypto:webcrypto,location:{origin:'https://fixture.invalid'},fetch:async url=>{requested.push(String(url));const body=files.get(String(url));return new Response(body||'',{status:body?200:404});},postMessage:message=>{if(message.type==='query-progress')return;const waiter=waiting.get(message.id);waiting.delete(message.id);if(message.type==='failure')waiter.reject(Error(message.message));else waiter.resolve(message.value);}};
+const waiting=new Map(),requested=[];let sequence=0,progressMessages=0;
+const context={URL,URLSearchParams,TextEncoder,TextDecoder,Response,crypto:webcrypto,location:{origin:'https://fixture.invalid'},fetch:async url=>{requested.push(String(url));const body=files.get(String(url));return new Response(body||'',{status:body?200:404});},postMessage:message=>{if(message.type==='query-progress'){progressMessages++;return;}const waiter=waiting.get(message.id);waiting.delete(message.id);if(message.type==='failure')waiter.reject(Error(message.message));else waiter.resolve(message.value);}};
 context.self=context;vm.createContext(context);
 context.importScripts=(...paths)=>{for(const path of paths)vm.runInContext(path==='locality.js'?locality:path==='financials.js'?financialCode:path==='queue-index.js'?queueCode:vendor,context);};
 const queueCode=await readFile(new URL('../intelligence/static/queue-index.js',import.meta.url),'utf8');
@@ -192,6 +192,19 @@ assert.equal((await request('/api/industry-composition?industry=Testing&status=A
 assert.equal((await request('/api/industry-composition?industry=Testing&status=Active&registered_activity_code=99999')).total,0);
 assert.equal((await request('/api/industry-composition?industry=Testing&status=Active&min_capital=10000000')).total,2);
 console.log('Industry drill-down: precomputed counts, absent industries, geography, evidence, exact codes and capital scope passed.');
+// A completed filtered scan retains only a bounded preview across UI view generations.
+const previewQuery='state=Gujarat&status=Active&min_capital=1&per_page=1';
+await call('begin-view');progressMessages=0;
+const previewFirst=await request('/api/companies?'+previewQuery+'&page=1');assert.equal(previewFirst.total,2);assert.ok(progressMessages>0);
+await call('begin-view');progressMessages=0;
+const previewNext=await request('/api/companies?'+previewQuery+'&page=2');assert.equal(previewNext.rows[0].name,'GAMMA FOUR');assert.equal(progressMessages,0,'Next page must reuse the completed scan, even after begin-view.');
+assert.equal((await request('/api/companies?'+previewQuery+'&page=3')).rows.length,0);assert.equal(progressMessages,0);
+assert.equal((await request('/api/companies?'+previewQuery.replace('min_capital=1','min_capital=100000000'))).total,1);
+assert.equal((await request('/api/companies?'+previewQuery+'&direction=desc')).rows[0].name,'GAMMA FOUR');
+await call('init',{url:'/national/catalog.json'});progressMessages=0;
+assert.equal((await request('/api/companies?'+previewQuery)).total,2);assert.ok(progressMessages>0,'A new snapshot must discard previous previews.');
+console.log('Bounded preview cache: next/empty pages, changed capital/sort and snapshot invalidation passed.');
+
 
 
 // Queue reads only its small pages/membership, not the national company index.

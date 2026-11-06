@@ -14,6 +14,7 @@ importScripts('vendor/fflate.js','locality.js','financials.js','queue-index.js')
   }
 
   let catalog,base,viewGeneration=0,financialReady,activeReady,activeSummary,researchReady;let webRevenue=new Map();let financials=new self.AtlasFinancial.Statements();
+  const previewCache=new Map(); // At most three immutable searches, each retaining the first 100 rows.
   const pendingChunks=new Map(),cache=new Map(),queryCache=new Map(),locationStates=new Map(),alignmentChecks=new Set(),listedCache=new Map();
   const inactive=new Set(['Strike Off','Struck Off','Dormant','Dissolved','Under Liquidation','Inactive','Amalgamated','Converted To Llp','Dissolved (Liquidated)','Dormant Under Section 455','Dissolved Under Section 59(8)','Dissolved Under Section 54']);
   const weights={revenue_growth:25,profitability:20,financial_stability:20,business_history:15,corporate_compliance:10,industry_prospects:10};
@@ -95,7 +96,10 @@ importScripts('vendor/fflate.js','locality.js','financials.js','queue-index.js')
     const task=(async()=>{const values=await chunk(descriptor);if(generation!==viewGeneration)throw Error('Search superseded by a newer view.');const rows=[],stats=new Stats();for(const value of values){const row=unpack(value,true,null,null,p);if(row.effective_listing!=='listed')throw Error('Listed-company index contains an unexpected listing value.');if(matches(row,p)){rows.push(row);stats.add(row);}}return {rows,stats:stats.output()};})();
     listedCache.set(key,task);while(listedCache.size>6)listedCache.delete(listedCache.keys().next().value);try{return await task;}catch(error){listedCache.delete(key);throw error;}
   }
+  function previewKey(p){return JSON.stringify([relevant(p).sort(),p.get('sort')||'name',p.get('direction')||'asc',p.get('reporting_type')||'standalone',p.get('fy')||'']);}
   async function scan(p){
+    const preview=previewCache.get(previewKey(p)),previewPage=Math.max(1,Number(p.get('page'))||1),previewSize=Math.min(100,Math.max(1,Number(p.get('per_page'))||25)),previewOffset=(previewPage-1)*previewSize;
+    if(preview&&(previewOffset+previewSize<=preview.rows.length||preview.total<=preview.rows.length||previewOffset>=preview.total))return {...preview,rows:preview.rows.slice(previewOffset,previewOffset+previewSize),page:previewPage,per_page:previewSize};
     const generation=viewGeneration,key=JSON.stringify([generation,[...p].sort()]);if(queryCache.has(key))return queryCache.get(key);
     const task=(async()=>{
       const page=Math.max(1,Number(p.get('page'))||1),perPage=Math.min(100,Math.max(1,Number(p.get('per_page'))||25)),offset=(page-1)*perPage;
@@ -117,20 +121,25 @@ importScripts('vendor/fflate.js','locality.js','financials.js','queue-index.js')
       if(known&&known.summary.companies===0)return {rows:[],total:0,page,per_page:perPage,stats:known};
       const sequential=!p.get('sort')||p.get('sort')==='name',reverse=p.get('direction')==='desc';
       if(!sequential&&offset+perPage>50000)throw Error('For deep pagination use company-name sorting or narrow the filters. Other sorts are limited to the first 50,000 matching rows.');
-      const heap=sequential?null:new TopRows(offset+perPage,p),visible=[];let count=0,processed=0;
+      const heap=sequential?null:new TopRows(offset+perPage,p),visible=[],previewRows=[];let count=0,processed=0;
       const descriptors=reverse&&sequential?[...list].reverse():list;
       const onlyOrderedSelection=known&&relevant(p).every(([field])=>field==='state');
       let needed=descriptors;
       if(onlyOrderedSelection&&sequential){let skip=0;while(skip<descriptors.length&&count+descriptors[skip].rows<=offset){count+=descriptors[skip].rows;skip++;}needed=descriptors.slice(skip);}
+      // Reject basic master-record filters before constructing the full evidence-rich row.
+      const primitiveFilters=['state','industry','class','status'].filter(field=>p.get(field)).map(field=>({index:catalog.index_fields.indexOf(field),dictionary:catalog.dictionaries[field],expected:p.get(field)}));
+      const paidIndex=catalog.index_fields.indexOf('paid_up_capital'),cinIndex=catalog.index_fields.indexOf('cin'),minCapital=p.get('min_capital'),exactCode=p.get('registered_activity_code');
       for await(const {descriptor,values}of orderedChunks(needed,known&&sequential&&!cinPaths?1:4)){
         if(generation!==viewGeneration)throw Error('Search superseded by a newer view.');
         const ids=await localityIds(descriptor,values,location),order=values.map((_,index)=>index);if(reverse&&sequential)order.reverse();
-        for(const index of order){const value=values[index],row=unpack(value,false,ids?ids[index]:null,location?.data,p);if(!matches(row,p))continue;if(stats)stats.add(row);if(sequential){if(count>=offset&&visible.length<perPage)visible.push(row);}else heap.add(row);count++;}
+        for(const index of order){const value=values[index];if(primitiveFilters.some(filter=>(filter.dictionary?filter.dictionary[value[filter.index]]:value[filter.index])!==filter.expected)||!capitalMatches(value[paidIndex],p.get('capital_band'))||(minCapital!==null&&minCapital!==''&&(value[paidIndex]==null||value[paidIndex]<Number(minCapital)))||(exactCode&&value[cinIndex].slice(1,6)!==exactCode))continue;const row=unpack(value,false,ids?ids[index]:null,location?.data,p);if(!matches(row,p))continue;if(stats)stats.add(row);if(stats&&sequential&&!reverse&&previewRows.length<100)previewRows.push(row);if(sequential){if(count>=offset&&visible.length<perPage)visible.push(row);}else heap.add(row);count++;}
         processed++;self.postMessage({type:'query-progress',processed,total:descriptors.length});
         if(known&&sequential&&visible.length>=perPage)break;
       }
       const rows=sequential?visible:heap.heap.sort((a,b)=>compare(a,b,p)).slice(offset,offset+perPage);
-      return {rows,total:known?known.summary.companies:count,page,per_page:perPage,stats:known||stats.output()};
+      const output={rows,total:known?known.summary.companies:count,page,per_page:perPage,stats:known||stats.output()};
+      if(stats&&sequential&&!reverse){previewCache.set(previewKey(p),{rows:previewRows,total:count,stats:output.stats});while(previewCache.size>3)previewCache.delete(previewCache.keys().next().value);}
+      return output;
     })();queryCache.set(key,task);while(queryCache.size>6)queryCache.delete(queryCache.keys().next().value);try{return await task;}catch(error){queryCache.delete(key);throw error;}
   }
   let queueReady,queueData;const queueMembership=new Map();
@@ -162,5 +171,5 @@ importScripts('vendor/fflate.js','locality.js','financials.js','queue-index.js')
     }
     throw Error('This action requires the full application backend.');
   }
-  self.onmessage=async event=>{const {id,action,...args}=event.data;try{let value;if(action==='begin-view'){viewGeneration++;value=true;}else if(action==='init'){const url=new URL(args.url,self.location.origin),response=await fetch(url);if(!response.ok)throw Error('Shared national catalog could not be loaded.');catalog=await response.json();financials=new self.AtlasFinancial.Statements();financialReady=null;activeReady=null;activeSummary=null;researchReady=null;webRevenue=new Map();activityReady=null;activityData=null;activities=new Map();cinReady=null;cinData=null;cinStatsCache.clear();queueReady=null;queueData=null;queueMembership.clear();flagReady=null;flagData=null;reviewFlags=new Map();queryCache.clear();listedCache.clear();locationStates.clear();if(catalog.schema_version!==2||catalog.publication_mode!=='authorised-public-dataset')throw Error('Unexpected national catalog format.');base=catalog.base_url||new URL('.',url).href;value={record_count:catalog.record_count,states:Object.keys(catalog.states).length,exceptions_url:new URL('exceptions.csv',base).href};}else value=await request(args.path);self.postMessage({type:'result',id,value});}catch(error){self.postMessage({type:'failure',id,message:error.message});}};
+  self.onmessage=async event=>{const {id,action,...args}=event.data;try{let value;if(action==='begin-view'){viewGeneration++;value=true;}else if(action==='init'){const url=new URL(args.url,self.location.origin),response=await fetch(url);if(!response.ok)throw Error('Shared national catalog could not be loaded.');catalog=await response.json();financials=new self.AtlasFinancial.Statements();financialReady=null;activeReady=null;activeSummary=null;researchReady=null;webRevenue=new Map();activityReady=null;activityData=null;activities=new Map();cinReady=null;cinData=null;cinStatsCache.clear();queueReady=null;queueData=null;queueMembership.clear();flagReady=null;flagData=null;reviewFlags=new Map();queryCache.clear();previewCache.clear();listedCache.clear();locationStates.clear();if(catalog.schema_version!==2||catalog.publication_mode!=='authorised-public-dataset')throw Error('Unexpected national catalog format.');base=catalog.base_url||new URL('.',url).href;value={record_count:catalog.record_count,states:Object.keys(catalog.states).length,exceptions_url:new URL('exceptions.csv',base).href};}else value=await request(args.path);self.postMessage({type:'result',id,value});}catch(error){self.postMessage({type:'failure',id,message:error.message});}};
 })();
